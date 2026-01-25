@@ -32,5 +32,5 @@ class GroupMembers(Base):
         onupdate=func.now(),
     )
 
-    user: Mapped["User"] = relationship("User", back_populates="groups")
-    group: Mapped["Group"] = relationship("Group", back_populates="members")
+    user: Mapped["User"] = relationship("User", back_populates="groups")  # type: ignore
+    group: Mapped["Group"] = relationship("Group", back_populates="members")  # type: ignore

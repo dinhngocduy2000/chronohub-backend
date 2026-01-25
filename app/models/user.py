@@ -34,8 +34,12 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    groups: Mapped[List["GroupMembers"]] = relationship(
+    groups: Mapped[List["GroupMembers"]] = relationship(  # type: ignore
         "GroupMembers", back_populates="user"
+    )
+
+    owned_groups: Mapped[List["Group"]] = relationship(  # type: ignore
+        "Group", back_populates="owner"
     )
 
     def view(self) -> UserInfo:
