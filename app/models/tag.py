@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import List
 from sqlalchemy import DateTime, String, func
 from app.core.database import Base
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQL_UUID
 from uuid import UUID, uuid4
 
@@ -24,3 +25,7 @@ class Tag(Base):
 
     color: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=True)
+
+    events: Mapped[List["EventTag"]] = relationship(  # type: ignore
+        "EventTag", back_populates="tag"
+    )
