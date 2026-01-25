@@ -33,6 +33,7 @@ class Group(Base):
         PostgreSQL_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     owner: Mapped["User"] = relationship(
