@@ -33,7 +33,10 @@ class Memory(Base):
     title: Mapped[str] = mapped_column(String(50), nullable=False)
     caption: Mapped[str] = mapped_column(String(255), nullable=True)
     visibility: Mapped[MemoryVisibility] = mapped_column(
-        Enum(MemoryVisibility), nullable=False, default=MemoryVisibility.GROUP
+        Enum(MemoryVisibility),
+        nullable=False,
+        default=MemoryVisibility.GROUP,
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -46,3 +49,4 @@ class Memory(Base):
     )
 
     comments: Mapped[List["Comment"]] = relationship("Comment", back_populates="memory")  # type: ignore
+    event: Mapped["Event"] = relationship("Event")  # type: ignore
