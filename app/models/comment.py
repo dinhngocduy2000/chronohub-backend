@@ -38,5 +38,5 @@ class Comment(Base):
         onupdate=func.now(),
     )
 
-    owner: Mapped["User"] = relationship("User")  # type: ignore
+    owner: Mapped["User"] = relationship("User", back_populates="comments")  # type: ignore
     memory: Mapped["Memory"] = relationship("Memory", back_populates="comments")  # type: ignore
