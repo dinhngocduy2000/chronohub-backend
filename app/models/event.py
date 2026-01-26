@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
 from app.common.enum.event_priority import EventPriority
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -56,3 +56,8 @@ class Event(Base):
     )
 
     tags: Mapped[List["EventTag"]] = relationship("EventTag", back_populates="event")
+
+    __table_args__ = (
+        Index("ix_events_group_start_date", "group_id", "start_date"),
+        Index("ix_events_group_priority", "group_id", "priority"),
+    )
