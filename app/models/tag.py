@@ -12,7 +12,9 @@ class Tag(Base):
     id: Mapped[UUID] = mapped_column(
         PostgreSQL_UUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False
     )
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(50), nullable=False, unique=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -23,8 +25,8 @@ class Tag(Base):
         onupdate=func.now(),
     )
 
-    color: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str] = mapped_column(String, nullable=True)
+    color: Mapped[str] = mapped_column(String(7), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
 
     events: Mapped[List["EventTag"]] = relationship(  # type: ignore
         "EventTag", back_populates="tag"
