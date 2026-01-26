@@ -50,3 +50,4 @@ class Memory(Base):
 
     comments: Mapped[List["Comment"]] = relationship("Comment", back_populates="memory")  # type: ignore
     event: Mapped["Event"] = relationship("Event")  # type: ignore
+    owner: Mapped["User"] = relationship("User")  # type: ignore
