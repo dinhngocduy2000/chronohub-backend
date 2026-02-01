@@ -1,7 +1,7 @@
 from app.common.exceptions import BadRequestException
 from app.common.exceptions.decorator import exception_handler
 from app.services.user import UserService
-from app.common.schemas.user import UserCreate, UserInfo
+from app.common.schemas.user import UserCreate, UserInfo, UserLogin, UserLoginResponse
 
 
 class UserHandler:
@@ -14,14 +14,27 @@ class UserHandler:
     async def create_user(self, user_data: UserCreate) -> UserInfo:
         """
         Create a new user account
-        
+
         Args:
             user_data: User registration data including email, name, and password
-            
+
         Returns:
             UserInfo: Created user information
-            
+
         Raises:
             BadRequestException: If email already exists or validation fails
         """
         return await self.service.create_user(user_data)
+
+    @exception_handler
+    async def login_user(self, login_request: UserLogin) -> UserLoginResponse:
+        """
+        Login a user
+
+        Args:
+            login_request: User login data including email and password
+
+        Returns:
+            UserLoginResponse: User login response
+        """
+        return await self.service.login_user(login_request)

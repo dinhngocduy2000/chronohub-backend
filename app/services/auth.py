@@ -18,7 +18,7 @@ import jwt
 salt = bcrypt.gensalt()
 
 
-class UserService:
+class AuthService:
     repo: Registry
 
     def __init__(self, repo: Registry) -> None:
@@ -110,3 +110,34 @@ class UserService:
             return login_response
 
         return await self.repo.transaction_wrapper(_login_user)
+
+    async def refresh_token(self, refresh_token: str) -> UserLoginResponse:
+        async def _refresh_token(session: AsyncSession) -> UserLoginResponse:
+            try:
+                token = jwt.decode(
+                    refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+                )
+                if token["type"] != "refresh":
+                    raise BadRequestException(message="Invalid token type")
+                user = await self.repo.user_repo().get(
+                    session=session, query=UserQuery(id=token["id"])
+                )
+                if user is None:
+                    raise BadRequestException(message="User not found")
+                if token["exp"] < datetime.now(timezone.utc).timestamp():
+                    raise BadRequestException(message="Token expired")
+                return self._generate_tokens(user)
+            except jwt.DecodeError as e:
+                raise BadRequestException(message="Invalid refresh token")
+            except jwt.ExpiredSignatureError as e:
+                raise BadRequestException(message="Token expired")
+            except jwt.InvalidTokenError as e:
+                raise BadRequestException(message="Invalid refresh token")
+            except jwt.InvalidSignatureError as e:
+                raise BadRequestException(message="Invalid refresh token")
+            except jwt.InvalidAlgorithmError as e:
+                raise BadRequestException(message="Invalid refresh token")
+            except jwt.InvalidKeyError as e:
+                raise BadRequestException(message="Invalid refresh token")
+
+        return await self.repo.transaction_wrapper(_refresh_token)

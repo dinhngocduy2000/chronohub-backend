@@ -21,6 +21,30 @@ class UserInfo(UserBase):
     image_url: Optional[str] = Field(None, description="User's image url")
 
 
+class UserQuery(BaseModel):
+    id: Optional[UUID] = Field(None, description="User's id")
+    email: Optional[str] = Field(None, description="User's email")
+    name: Optional[str] = Field(None, description="User's name")
+    status: Optional[str] = Field(None, description="User's status")
+
+
+class UserLoginResponse(UserBase):
+    id: UUID = Field(None, description="User's id")
+    access_token: str = Field(None, description="User's access token")
+    refresh_token: str = Field(None, description="User's refresh token")
+    expires_in: int = Field(None, description="User's expires in")
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(None, description="User's refresh token")
+
+    @field_validator("refresh_token")
+    def validate_refresh_token(cls, refresh_token: str) -> str:
+        if refresh_token is None:
+            raise BadRequestException("Refresh token is required")
+        return refresh_token
+
+
 class UserCreate(BaseModel):
     name: str = Field(None, description="User's name")
     email: str = Field(None, description="User's email")
@@ -64,3 +88,18 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str = Field("", description="User's email")
     password: str = Field("", description="User's password")
+
+    @field_validator("email")
+    def validate_email(cls, email: str) -> str:
+        if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
+            raise ValueError("Invalid email address")
+        if email is None:
+            raise BadRequestException("Email is required")
+        return email
+
+    @field_validator("password")
+    def validate_password(cls, password: str) -> str:
+        if password is None:
+            raise BadRequestException("Password is required")
+
+        return password

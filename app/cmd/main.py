@@ -5,9 +5,12 @@ from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import create_pg_engine
+from app.handler.auth import AuthHandler
 from app.handler.user import UserHandler
 from app.repository.registry import Registry
+from app.router.auth import AuthRouter
 from app.router.user import UserRouter
+from app.services.auth import AuthService
 from app.services.user import UserService
 
 
@@ -20,15 +23,22 @@ class App:
             registry = Registry(pg_engine)
             # ------------ Service ------------
             user_service = UserService(repo=registry)
+            auth_service = AuthService(repo=registry)
             # ------------ Handler ------------
             user_handler = UserHandler(service=user_service)
+            auth_handler = AuthHandler(service=auth_service)
             # ------------ Router ------------
             user_router = UserRouter(handler=user_handler)
-
+            auth_router = AuthRouter(handler=auth_handler)
             self.application.include_router(
                 user_router.router,
                 prefix=settings.API_V1_PREFIX + "/users",
                 tags=["Users"],
+            )
+            self.application.include_router(
+                auth_router.router,
+                prefix=settings.API_V1_PREFIX + "/auth",
+                tags=["Auth"],
             )
 
         return start_app
