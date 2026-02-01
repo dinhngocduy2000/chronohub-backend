@@ -18,7 +18,7 @@ import jwt
 salt = bcrypt.gensalt()
 
 
-class UserService:
+class AuthService:
     repo: Registry
 
     def __init__(self, repo: Registry) -> None:

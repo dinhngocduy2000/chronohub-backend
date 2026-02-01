@@ -1,20 +1,20 @@
-from typing import List
-from fastapi import APIRouter, status, Query, Path
-from app.handler.user import UserHandler
-from app.common.schemas.user import UserCreate, UserInfo, UserLoginResponse
+from fastapi import APIRouter, status
+
+from app.common.schemas.user import UserInfo, UserLoginResponse
+from app.handler.auth import AuthHandler
 
 
-class UserRouter:
+class AuthRouter:
     router: APIRouter
-    handler: UserHandler
+    handler: AuthHandler
 
-    def __init__(self, handler: UserHandler) -> None:
-        self.router = APIRouter(prefix="", tags=["Users"])
+    def __init__(self, handler: AuthHandler) -> None:
+        self.router = APIRouter(prefix="", tags=["Auth"])
         self.handler = handler
 
         self.router.add_api_route(
             path="/login",
-            endpoint=self.handler.login_user,
+            endpoint=self.handler.authenticate_user,
             methods=["POST"],
             response_model=UserLoginResponse,
             status_code=status.HTTP_200_OK,
@@ -28,6 +28,12 @@ class UserRouter:
                         "application/json": {
                             "example": {
                                 "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "email": "john@example.com",
+                                "name": "John Doe",
+                                "status": "PENDING",
+                                "access_token": "access_token",
+                                "refresh_token": "refresh_token",
+                                "expires_in": 300,
                             }
                         }
                     },
@@ -42,10 +48,11 @@ class UserRouter:
                 },
             },
         )
+
         # POST /users - Create user
         self.router.add_api_route(
             path="/register",
-            endpoint=self.handler.create_user,
+            endpoint=self.handler.register_user,
             methods=["POST"],
             response_model=UserInfo,
             status_code=status.HTTP_201_CREATED,
