@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 from app.common.schemas.user import (
     UserCreate,
     UserInfo,
@@ -33,6 +34,7 @@ class AuthService:
         jwt_payload["exp"] = current_time + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
+
         access_token = jwt.encode(
             jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
         )
@@ -53,7 +55,7 @@ class AuthService:
             id=user.id,
             access_token=access_token,
             refresh_token=refresh_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         )
 
         return login_response
@@ -139,5 +141,18 @@ class AuthService:
                 raise BadRequestException(message="Invalid refresh token")
             except jwt.InvalidKeyError as e:
                 raise BadRequestException(message="Invalid refresh token")
+            except Exception as e:
+                raise e
 
         return await self.repo.transaction_wrapper(_refresh_token)
+
+    async def get_current_user(self, user_id: UUID) -> UserInfo:
+        async def _get_current_user(session: AsyncSession) -> UserInfo:
+            user = await self.repo.user_repo().get(
+                session=session, query=UserQuery(id=user_id)
+            )
+            if user is None:
+                raise BadRequestException(message="User not found")
+            return user.view()
+
+        return await self.repo.transaction_wrapper(_get_current_user)

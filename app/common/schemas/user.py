@@ -45,6 +45,13 @@ class RefreshTokenRequest(BaseModel):
         return refresh_token
 
 
+class Credential(BaseModel):
+    id: UUID
+    email: str
+    # role: Role
+    is_pending: Optional[bool] = None
+
+
 class UserCreate(BaseModel):
     name: str = Field(None, description="User's name")
     email: str = Field(None, description="User's email")

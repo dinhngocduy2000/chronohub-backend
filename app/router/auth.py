@@ -16,7 +16,7 @@ class AuthRouter:
             path="/login",
             endpoint=self.handler.authenticate_user,
             methods=["POST"],
-            response_model=UserLoginResponse,
+            response_model=str,
             status_code=status.HTTP_200_OK,
             summary="Login a user",
             description="Login a user with email and password. ",
@@ -26,15 +26,7 @@ class AuthRouter:
                     "description": "User logged in successfully",
                     "content": {
                         "application/json": {
-                            "example": {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "email": "john@example.com",
-                                "name": "John Doe",
-                                "status": "PENDING",
-                                "access_token": "access_token",
-                                "refresh_token": "refresh_token",
-                                "expires_in": 300,
-                            }
+                            "example": {"detail": "Successfully logged in"}
                         }
                     },
                 },
@@ -53,7 +45,7 @@ class AuthRouter:
             path="/refresh",
             endpoint=self.handler.refresh_token,
             methods=["POST"],
-            response_model=UserLoginResponse,
+            response_model=str,
             status_code=status.HTTP_200_OK,
             summary="Refresh a token",
             description="Refresh a token. ",
@@ -63,23 +55,15 @@ class AuthRouter:
                     "description": "Token refreshed successfully",
                     "content": {
                         "application/json": {
-                            "example": {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "email": "john@example.com",
-                                "name": "John Doe",
-                                "status": "PENDING",
-                                "access_token": "access_token",
-                                "refresh_token": "refresh_token",
-                                "expires_in": 300,
-                            }
+                            "example": {"detail": "Successfully refreshed token"}
                         }
                     },
                 },
                 400: {
-                    "description": "Bad request - Invalid input data or email already exists",
+                    "description": "Bad request - Invalid refresh token",
                     "content": {
                         "application/json": {
-                            "example": {"detail": "Invalid token type"}
+                            "example": {"detail": "Invalid refresh token"}
                         }
                     },
                 },
@@ -134,6 +118,36 @@ class AuthRouter:
                                         "type": "value_error",
                                     }
                                 ]
+                            }
+                        }
+                    },
+                },
+            },
+        )
+
+        # GET /users/me - Get current user profile
+        self.router.add_api_route(
+            path="/profile",
+            endpoint=self.handler.get_current_user_profile,
+            methods=["GET"],
+            response_model=UserInfo,
+            status_code=status.HTTP_200_OK,
+            summary="Get current user profile",
+            description="Get current user profile based on the user id in the credential",
+            response_description="The current user profile information",
+            responses={
+                200: {
+                    "description": "User profile retrieved successfully",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "name": "John Doe",
+                                "email": "john@example.com",
+                                "status": "active",
+                                "created_at": "2026-01-25T10:30:00Z",
+                                "updated_at": "2026-01-25T10:30:00Z",
+                                "image_url": None,
                             }
                         }
                     },
