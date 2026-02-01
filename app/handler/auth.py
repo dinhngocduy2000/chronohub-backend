@@ -1,7 +1,16 @@
+from uuid import uuid4
 from fastapi import Depends, Request, Response
+from app.common.context import AppContext
+from app.common.enum.context_actions import (
+    AUTHENTICATE_USER,
+    GET_CURRENT_USER_PROFILE,
+    REFRESH_TOKEN,
+    REGISTER_USER,
+)
 from app.common.exceptions import BadRequestException
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
+from app.common.middleware.logger import Logger
 from app.common.schemas.user import (
     Credential,
     RefreshTokenRequest,
@@ -11,8 +20,9 @@ from app.common.schemas.user import (
     UserLoginResponse,
 )
 from app.services.auth import AuthService
-from loguru import logger
 from app.core.config import settings
+
+logger = Logger()
 
 
 class AuthHandler:
@@ -52,9 +62,12 @@ class AuthHandler:
         Returns:
             str: Success message
         """
+        ctx = AppContext(trace_id=uuid4(), action=AUTHENTICATE_USER)
 
-        login_response = await self.service.login_user(login_request)
+        login_response = await self.service.login_user(login_request, ctx=ctx)
+
         self._set_cookies_tokens(response=response, login_response=login_response)
+        logger.info(msg=f"User logged in successfully", context=ctx)
         return "Success"
 
     @exception_handler
@@ -71,7 +84,8 @@ class AuthHandler:
         Raises:
             BadRequestException: If email already exists or validation fails
         """
-        return await self.service.create_user(user_create)
+        ctx = AppContext(trace_id=uuid4(), action=REGISTER_USER)
+        return await self.service.create_user(user_create, ctx=ctx)
 
     @exception_handler
     async def refresh_token(
@@ -88,10 +102,19 @@ class AuthHandler:
         Returns:
             str: Success message
         """
+        ctx = AppContext(trace_id=uuid4(), action=REFRESH_TOKEN)
+        logger.info(msg=f"Getting refresh token from cookies...", context=ctx)
         refresh_token = request.cookies.get("refresh_token")
         if refresh_token is None:
+            logger.error(msg=f"Refresh token not found in cookies...", context=ctx)
             raise BadRequestException("Refresh token is required")
-        login_response = await self.service.refresh_token(refresh_token)
+        logger.info(msg=f"Refresh token found, refreshing token...", context=ctx)
+        login_response = await self.service.refresh_token(
+            refresh_token=refresh_token, ctx=ctx
+        )
+        logger.info(
+            msg=f"Token refreshed successfully, setting cookies...", context=ctx
+        )
         self._set_cookies_tokens(response=response, login_response=login_response)
         return "Success"
 
@@ -99,6 +122,7 @@ class AuthHandler:
     async def get_current_user_profile(
         self, credential: Credential = Depends(AuthMiddleware.auth_middleware)
     ) -> UserInfo:
+        ctx = AppContext(trace_id=uuid4(), action=GET_CURRENT_USER_PROFILE)
         """
         Get current user profile based on the user id in the credential
 
@@ -108,5 +132,10 @@ class AuthHandler:
         Returns:
             UserInfo: User information
         """
-        user_info = await self.service.get_current_user(credential.id)
+        user_info = await self.service.get_current_user(credential.id, ctx=ctx)
+        logger.info(
+            msg=f"User profile retrieved successfully, returning user info...",
+            context=ctx,
+        )
+        logger.info(msg=f"User info: {user_info}", context=ctx)
         return user_info
