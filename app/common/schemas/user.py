@@ -35,6 +35,16 @@ class UserLoginResponse(UserBase):
     expires_in: int = Field(None, description="User's expires in")
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(None, description="User's refresh token")
+
+    @field_validator("refresh_token")
+    def validate_refresh_token(cls, refresh_token: str) -> str:
+        if refresh_token is None:
+            raise BadRequestException("Refresh token is required")
+        return refresh_token
+
+
 class UserCreate(BaseModel):
     name: str = Field(None, description="User's name")
     email: str = Field(None, description="User's email")

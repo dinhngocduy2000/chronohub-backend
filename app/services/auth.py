@@ -110,3 +110,21 @@ class AuthService:
             return login_response
 
         return await self.repo.transaction_wrapper(_login_user)
+
+    async def refresh_token(self, refresh_token: str) -> UserLoginResponse:
+        async def _refresh_token(session: AsyncSession) -> UserLoginResponse:
+            token = jwt.decode(
+                refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            if token["type"] != "refresh":
+                raise BadRequestException(message="Invalid token type")
+            user = await self.repo.user_repo().get(
+                session=session, query=UserQuery(id=token["id"])
+            )
+            if user is None:
+                raise BadRequestException(message="User not found")
+            if token["exp"] < datetime.now(timezone.utc).timestamp():
+                raise BadRequestException(message="Token expired")
+            return self._generate_tokens(user)
+
+        return await self.repo.transaction_wrapper(_refresh_token)

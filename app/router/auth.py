@@ -49,6 +49,43 @@ class AuthRouter:
             },
         )
 
+        self.router.add_api_route(
+            path="/refresh",
+            endpoint=self.handler.refresh_token,
+            methods=["POST"],
+            response_model=UserLoginResponse,
+            status_code=status.HTTP_200_OK,
+            summary="Refresh a token",
+            description="Refresh a token. ",
+            response_description="The refreshed token information",
+            responses={
+                200: {
+                    "description": "Token refreshed successfully",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "email": "john@example.com",
+                                "name": "John Doe",
+                                "status": "PENDING",
+                                "access_token": "access_token",
+                                "refresh_token": "refresh_token",
+                                "expires_in": 300,
+                            }
+                        }
+                    },
+                },
+                400: {
+                    "description": "Bad request - Invalid input data or email already exists",
+                    "content": {
+                        "application/json": {
+                            "example": {"detail": "Invalid token type"}
+                        }
+                    },
+                },
+            },
+        )
+
         # POST /users - Create user
         self.router.add_api_route(
             path="/register",

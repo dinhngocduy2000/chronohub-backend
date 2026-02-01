@@ -1,5 +1,11 @@
 from app.common.exceptions.decorator import exception_handler
-from app.common.schemas.user import UserCreate, UserInfo, UserLogin, UserLoginResponse
+from app.common.schemas.user import (
+    RefreshTokenRequest,
+    UserCreate,
+    UserInfo,
+    UserLogin,
+    UserLoginResponse,
+)
 from app.services.auth import AuthService
 
 
@@ -37,3 +43,18 @@ class AuthHandler:
             BadRequestException: If email already exists or validation fails
         """
         return await self.service.create_user(user_create)
+
+    @exception_handler
+    async def refresh_token(
+        self, refresh_token_request: RefreshTokenRequest
+    ) -> UserLoginResponse:
+        """
+        Refresh a token
+
+        Args:
+            refresh_token: User refresh token
+
+        Returns:
+            UserLoginResponse: User login response
+        """
+        return await self.service.refresh_token(refresh_token_request.refresh_token)
