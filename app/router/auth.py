@@ -124,3 +124,33 @@ class AuthRouter:
                 },
             },
         )
+
+        # GET /users/me - Get current user profile
+        self.router.add_api_route(
+            path="/profile",
+            endpoint=self.handler.get_current_user_profile,
+            methods=["GET"],
+            response_model=UserInfo,
+            status_code=status.HTTP_200_OK,
+            summary="Get current user profile",
+            description="Get current user profile based on the user id in the credential",
+            response_description="The current user profile information",
+            responses={
+                200: {
+                    "description": "User profile retrieved successfully",
+                    "content": {
+                        "application/json": {
+                            "example": {
+                                "id": "550e8400-e29b-41d4-a716-446655440000",
+                                "name": "John Doe",
+                                "email": "john@example.com",
+                                "status": "active",
+                                "created_at": "2026-01-25T10:30:00Z",
+                                "updated_at": "2026-01-25T10:30:00Z",
+                                "image_url": None,
+                            }
+                        }
+                    },
+                },
+            },
+        )

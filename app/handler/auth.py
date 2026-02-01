@@ -94,3 +94,19 @@ class AuthHandler:
         login_response = await self.service.refresh_token(refresh_token)
         self._set_cookies_tokens(response=response, login_response=login_response)
         return "Success"
+
+    @exception_handler
+    async def get_current_user_profile(
+        self, credential: Credential = Depends(AuthMiddleware.auth_middleware)
+    ) -> UserInfo:
+        """
+        Get current user profile based on the user id in the credential
+
+        Args:
+            credential: Credential object
+
+        Returns:
+            UserInfo: User information
+        """
+        user_info = await self.service.get_current_user(credential.id)
+        return user_info
