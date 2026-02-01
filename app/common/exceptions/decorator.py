@@ -1,10 +1,11 @@
 from functools import wraps
 
-from fastapi import HTTPException
-from loguru import logger
 from pydantic import ValidationError
 
 from app.common.exceptions import BadRequestException, ExceptionInternalError
+from app.common.middleware.logger import Logger
+
+logger = Logger()
 
 
 def exception_handler(func):
