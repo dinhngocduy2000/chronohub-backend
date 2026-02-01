@@ -1,6 +1,7 @@
 from typing import Callable
 from fastapi import FastAPI
 from loguru import logger
+from app.common.middleware.auth_middleware import AuthMiddleware
 from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,6 +25,8 @@ class App:
             # ------------ Service ------------
             user_service = UserService(repo=registry)
             auth_service = AuthService(repo=registry)
+
+            AuthMiddleware.init(auth_service=auth_service)
             # ------------ Handler ------------
             user_handler = UserHandler(service=user_service)
             auth_handler = AuthHandler(service=auth_service)
