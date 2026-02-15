@@ -5,6 +5,7 @@ from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
+from app.common.enum.user_status import UserStatus
 from app.common.exceptions import BadRequestException
 
 
@@ -50,6 +51,14 @@ class Credential(BaseModel):
     email: str
     # role: Role
     is_pending: Optional[bool] = None
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="User's name")
+    email: Optional[str] = Field(None, description="User's email")
+    password: Optional[str] = Field(None, description="User's password")
+    image_url: Optional[str] = Field(None, description="User's image url")
+    status: Optional[UserStatus] = Field(None, description="User's status")
 
 
 class UserCreate(BaseModel):

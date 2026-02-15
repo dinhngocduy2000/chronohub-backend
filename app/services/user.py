@@ -1,21 +1,27 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import UUID
+from app.common.context import AppContext
+from app.common.middleware.logger import Logger
 from app.common.schemas.user import (
     UserCreate,
     UserInfo,
     UserLogin,
     UserLoginResponse,
     UserQuery,
+    UserUpdate,
 )
 from app.common.exceptions import BadRequestException
 from app.models.user import User
 from app.repository.registry import Registry
 from sqlalchemy.ext.asyncio import AsyncSession
 import bcrypt
-from loguru import logger
 from app.core.config import settings
 import jwt
 
 salt = bcrypt.gensalt()
+logger = Logger()
 
 
 class UserService:
@@ -90,23 +96,45 @@ class UserService:
 
         return await self.repo.transaction_wrapper(_create_user)
 
-    async def login_user(self, login_request: UserLogin) -> UserLoginResponse:
-        async def _login_user(session: AsyncSession) -> UserLoginResponse:
+    async def update_user(
+        self, user_update: UserUpdate, user_id: UUID, ctx: AppContext
+    ) -> UserInfo:
+        async def _update_user(session: AsyncSession) -> UserInfo:
             user = await self.repo.user_repo().get(
-                session=session, query=UserQuery(email=login_request.email)
+                session=session, query=UserQuery(id=user_id)
             )
+
+            user_with_same_email = None
+
             if user is None:
-                raise BadRequestException(
-                    message="The user with this email does not exist"
+                logger.error(msg=f"User with id {user_id} not found", context=ctx)
+                raise BadRequestException(message="User not found")
+
+            if user_update.email is not None:
+                user_with_same_email = await self.repo.user_repo().get(
+                    session=session, query=UserQuery(email=user_update.email)
                 )
 
-            check_valid_password = bcrypt.checkpw(
-                login_request.password.encode("utf-8"), user.password.encode("utf-8")
+            if user_with_same_email is not None and user_with_same_email.id != user_id:
+                logger.error(
+                    msg=f"User with email {user_update.email} already exists",
+                    context=ctx,
+                )
+                raise BadRequestException(message="User with this email already exists")
+
+            new_user = await self.repo.user_repo().update_user(
+                session=session, user_id=user_id, user_update=user_update
             )
-            if not check_valid_password:
-                raise BadRequestException(message="Invalid password")
+            return new_user
 
-            login_response = self._generate_tokens(user)
-            return login_response
+        return await self.repo.transaction_wrapper(_update_user)
 
-        return await self.repo.transaction_wrapper(_login_user)
+    async def get_user_by_email(self, email: str, ctx: AppContext) -> UserInfo:
+        async def _get_user_by_email(session: AsyncSession) -> UserInfo:
+            user = await self.repo.user_repo().get(
+                session=session, query=UserQuery(email=email)
+            )
+
+            return user.view() if user else None
+
+        return await self.repo.transaction_wrapper(_get_user_by_email)

@@ -28,7 +28,9 @@ class App:
             # ------------ Service ------------
             user_service = UserService(repo=registry)
             group_service = GroupService(repo=registry)
-            auth_service = AuthService(repo=registry, group_service=group_service)
+            auth_service = AuthService(
+                repo=registry, group_service=group_service, user_service=user_service
+            )
 
             AuthMiddleware.init(auth_service=auth_service)
             # ------------ Handler ------------
