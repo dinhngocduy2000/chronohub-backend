@@ -6,11 +6,13 @@ from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
 from app.common.schemas.group import GroupCreateDomain
 from app.common.schemas.user import (
+    Credential,
     UserCreate,
     UserInfo,
     UserLogin,
     UserLoginResponse,
     UserQuery,
+    UserUpdate,
 )
 from app.common.exceptions import BadRequestException
 from app.models.user import User
@@ -21,6 +23,7 @@ from app.core.config import settings
 import jwt
 
 from app.services.group import GroupService
+from app.services.user import UserService
 
 salt = bcrypt.gensalt()
 
@@ -30,10 +33,14 @@ logger = Logger()
 class AuthService:
     repo: Registry
     group_service: GroupService
+    user_service: UserService
 
-    def __init__(self, repo: Registry, group_service: GroupService) -> None:
+    def __init__(
+        self, repo: Registry, group_service: GroupService, user_service: UserService
+    ) -> None:
         self.repo = repo
-        self.group_service = GroupService(repo=self.repo)
+        self.group_service = group_service
+        self.user_service = user_service
 
     def _generate_tokens(self, user: User) -> UserLoginResponse:
         current_time = datetime.now(timezone.utc)
@@ -170,13 +177,30 @@ class AuthService:
                     logger.info(
                         msg=f"User login for first time, creating default group..."
                     )
+                    user_update = UserUpdate(
+                        name=user.name,
+                        email=user.email,
+                        password=user.password,
+                        image_url=user.image_url,
+                        status=UserStatus.ACTIVE,
+                    )
                     new_group = GroupCreateDomain(
                         name=f"{user.name}'s Group",
                         description=f"Group created for {user.name} by default",
-                        owner_id=user.id,
                     )
-                    await self.repo.group_repo().create_group(
-                        session=session, group_create=new_group
+                    asyncio.create_task(
+                        self.group_service.create_group(
+                            group_create=new_group,
+                            credential=Credential(
+                                id=user.id, email=user.email, is_pending=False
+                            ),
+                            ctx=ctx,
+                        ),
+                    )
+                    asyncio.create_task(
+                        self.user_service.update_user(
+                            user_update=user_update, user_id=user.id, ctx=ctx
+                        ),
                     )
 
                 return login_response

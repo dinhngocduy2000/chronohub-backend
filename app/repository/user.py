@@ -1,9 +1,9 @@
 from typing import List, Optional
-from sqlalchemy import Select, select
+from sqlalchemy import UUID, Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.enum.user_status import UserStatus
-from app.common.schemas.user import UserInfo, UserQuery
+from app.common.schemas.user import UserInfo, UserQuery, UserUpdate
 from app.models.user import User
 
 
@@ -33,8 +33,23 @@ class UserRepository:
     async def get_list_users(self, session: AsyncSession) -> List[str]:
         pass
 
-    async def update_user(self, session: AsyncSession, user_id: str) -> None:
-        pass
+    async def update_user(
+        self, session: AsyncSession, user_id: UUID, user_update: UserUpdate
+    ) -> None:
+        stmt = (
+            update(User)
+            .where(User.id == user_id)
+            .values(
+                name=user_update.name,
+                email=user_update.email,
+                password=user_update.password,
+                image_url=user_update.image_url,
+                status=user_update.status,
+                updated_at=func.now(),
+            )
+        )
+        await session.execute(stmt)
+        await session.commit()
 
     async def delete_user(self, session: AsyncSession, user_id: str) -> None:
         pass
