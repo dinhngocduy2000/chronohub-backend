@@ -2,17 +2,20 @@ from typing import Callable
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.common.types import T
+from app.repository.group import GroupRepository
 from app.repository.user import UserRepository
 
 
 class Registry:
     _pg_engine: AsyncEngine
     _user_repo: UserRepository
+    _group_repo: GroupRepository
     # _test_repo: TestRepository
 
     def __init__(self, pg_engine: AsyncEngine) -> None:
         self._pg_engine = pg_engine
         self._user_repo = UserRepository()
+        self._group_repo = GroupRepository()
         # self._test_repo = TestRepository()
 
     async def transaction_wrapper(self, tx_func: Callable[[AsyncSession], T]) -> T:
@@ -33,3 +36,6 @@ class Registry:
 
     def user_repo(self) -> UserRepository:
         return self._user_repo
+
+    def group_repo(self) -> GroupRepository:
+        return self._group_repo

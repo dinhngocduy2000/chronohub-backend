@@ -1,7 +1,10 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from app.common.context import AppContext
+from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
+from app.common.schemas.group import GroupCreateDomain
 from app.common.schemas.user import (
     UserCreate,
     UserInfo,
@@ -17,6 +20,8 @@ import bcrypt
 from app.core.config import settings
 import jwt
 
+from app.services.group import GroupService
+
 salt = bcrypt.gensalt()
 
 logger = Logger()
@@ -24,9 +29,11 @@ logger = Logger()
 
 class AuthService:
     repo: Registry
+    group_service: GroupService
 
-    def __init__(self, repo: Registry) -> None:
+    def __init__(self, repo: Registry, group_service: GroupService) -> None:
         self.repo = repo
+        self.group_service = GroupService(repo=self.repo)
 
     def _generate_tokens(self, user: User) -> UserLoginResponse:
         current_time = datetime.now(timezone.utc)
@@ -158,6 +165,20 @@ class AuthService:
                     msg=f"Tokens generated successfully, settings tokens to cookies...",
                     context=ctx,
                 )
+
+                if user.status == UserStatus.PENDING:
+                    logger.info(
+                        msg=f"User login for first time, creating default group..."
+                    )
+                    new_group = GroupCreateDomain(
+                        name=f"{user.name}'s Group",
+                        description=f"Group created for {user.name} by default",
+                        owner_id=user.id,
+                    )
+                    await self.repo.group_repo().create_group(
+                        session=session, group_create=new_group
+                    )
+
                 return login_response
             except Exception as e:
                 logger.error(msg=f"Login user failed: Exception", context=ctx)
