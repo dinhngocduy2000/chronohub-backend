@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, String, DateTime, func
+from sqlalchemy import ForeignKey, String, DateTime, func, inspect
 from app.common.schemas.group import GroupInfo
 from app.core.database import Base
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQL_UUID
@@ -18,7 +18,8 @@ class Group(Base):
     id: Mapped[UUID] = mapped_column(
         PostgreSQL_UUID(as_uuid=True), primary_key=True, default=uuid4, nullable=False
     )
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    description: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -45,10 +46,18 @@ class Group(Base):
     )
 
     def view(self) -> GroupInfo:
+        # Check if members relationship is loaded to avoid lazy loading in async context
+        insp = inspect(self)
+        members_loaded = not insp.unloaded.intersection({"members"})
+
         return GroupInfo(
             id=self.id,
             name=self.name,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            members=[member.user.view() for member in self.members],
+            members=(
+                [member.user.view() for member in self.members]
+                if members_loaded
+                else []
+            ),
         )

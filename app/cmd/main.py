@@ -7,11 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import create_pg_engine
 from app.handler.auth import AuthHandler
+from app.handler.group import GroupHandler
 from app.handler.user import UserHandler
 from app.repository.registry import Registry
 from app.router.auth import AuthRouter
+from app.router.group import GroupRouter
 from app.router.user import UserRouter
 from app.services.auth import AuthService
+from app.services.group import GroupService
 from app.services.user import UserService
 
 
@@ -24,15 +27,18 @@ class App:
             registry = Registry(pg_engine)
             # ------------ Service ------------
             user_service = UserService(repo=registry)
-            auth_service = AuthService(repo=registry)
+            group_service = GroupService(repo=registry)
+            auth_service = AuthService(repo=registry, group_service=group_service)
 
             AuthMiddleware.init(auth_service=auth_service)
             # ------------ Handler ------------
             user_handler = UserHandler(service=user_service)
             auth_handler = AuthHandler(service=auth_service)
+            group_handler = GroupHandler(service=group_service)
             # ------------ Router ------------
             user_router = UserRouter(handler=user_handler)
             auth_router = AuthRouter(handler=auth_handler)
+            group_router = GroupRouter(handler=group_handler)
             self.application.include_router(
                 user_router.router,
                 prefix=settings.API_V1_PREFIX + "/users",
@@ -42,6 +48,11 @@ class App:
                 auth_router.router,
                 prefix=settings.API_V1_PREFIX + "/auth",
                 tags=["Auth"],
+            )
+            self.application.include_router(
+                group_router.router,
+                prefix=settings.API_V1_PREFIX + "/groups",
+                tags=["Groups"],
             )
 
         return start_app
