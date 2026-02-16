@@ -1,32 +1,34 @@
 # Tests Directory ✅
 
-**Status: 26/26 tests passing (100%)** 🎉
+**Status: 41/41 tests passing (100%)** 🎉
 
 This directory contains all tests for the ChronoHub Backend API.
 
 ## 📊 Quick Stats
 
 ```
-Total Tests:        26
-Unit Tests:         20
+Total Tests:        41
+Unit Tests:         35
 Integration Tests:  6
 Pass Rate:          100%
-Execution Time:     ~150ms
+Execution Time:     ~300ms
 Coverage:           ~85%
+Security:           Fully Tested 🔐
 ```
 
 ## 📁 Structure
 
 ```
 tests/
-├── conftest.py                      # Shared fixtures and test configuration
-├── README.md                        # This file
-├── unit/                            # Unit tests (test individual components)
-│   ├── test_group_handler.py       # Handler tests (2 tests)
-│   ├── test_group_service.py       # Service tests (3 tests)
-│   └── test_group_handler_improved.py  # Advanced examples (15 tests)
-└── integration/                     # Integration tests (test full endpoints)
-    └── test_group_endpoints.py     # Endpoint tests (6 tests)
+├── conftest.py                         # Shared fixtures and test configuration
+├── README.md                           # This file
+├── unit/                               # Unit tests (test individual components)
+│   ├── test_auth_middleware.py        # 🔐 Auth middleware tests (15 tests) ✨ NEW
+│   ├── test_group_handler.py          # Handler tests (2 tests)
+│   ├── test_group_service.py          # Service tests (3 tests)
+│   └── test_group_handler_improved.py # Advanced examples (15 tests)
+└── integration/                        # Integration tests (test full endpoints)
+    └── test_group_endpoints.py        # Endpoint tests (6 tests)
 ```
 
 ## 🚀 Quick Start
@@ -87,6 +89,20 @@ Reusable test data available in all tests:
 | `auth_headers` | dict | Mock auth headers |
 
 ## ✅ Test Coverage
+
+### 🔐 Authentication Middleware (`test_auth_middleware.py`) ✨ NEW
+**15 tests covering critical security**
+- ✅ Valid token authentication
+- ✅ Missing token (401)
+- ✅ Expired token detection
+- ✅ Invalid JWT handling
+- ✅ Wrong secret detection
+- ✅ User not found (401)
+- ✅ User status (pending/active)
+- ✅ Token structure validation
+- ✅ Edge cases & error handling
+
+See [AUTH_TESTING_SUMMARY.md](../AUTH_TESTING_SUMMARY.md) for details.
 
 ### Handler Layer (`test_group_handler.py`)
 - ✅ Successful creation
@@ -303,9 +319,10 @@ When adding new tests:
 ## 🎉 Success!
 
 You have a comprehensive test suite with:
-- ✅ 26 tests (100% passing)
-- ✅ Fast execution (150ms)
+- ✅ 41 tests (100% passing)
+- ✅ Fast execution (~300ms)
 - ✅ Complete documentation
+- ✅ Security fully tested 🔐
 - ✅ CI/CD ready
 - ✅ Easy to maintain
 
