@@ -1,8 +1,9 @@
-.PHONY: help install dev docker-up docker-down migrate migration migration-status migration-history test lint format clean
+.PHONY: help install install-dev dev docker-up docker-down migrate migration migration-status migration-history test test-unit test-integration test-cov test-watch lint format clean
 
 help:
 	@echo "Available commands:"
 	@echo "  make install           - Install dependencies"
+	@echo "  make install-dev       - Install dev dependencies"
 	@echo "  make dev               - Run development server"
 	@echo "  make docker-up         - Start Docker containers"
 	@echo "  make docker-down       - Stop Docker containers"
@@ -10,13 +11,21 @@ help:
 	@echo "  make migration         - Create new migration"
 	@echo "  make migration-status  - Check migration status"
 	@echo "  make migration-history - Show detailed migration history"
-	@echo "  make test              - Run tests"
+	@echo "  make test              - Run all tests"
+	@echo "  make test-unit         - Run unit tests only"
+	@echo "  make test-integration  - Run integration tests only"
+	@echo "  make test-cov          - Run tests with coverage"
+	@echo "  make test-watch        - Run tests in watch mode"
 	@echo "  make lint              - Run linting"
 	@echo "  make format            - Format code"
 	@echo "  make clean             - Clean up cache files"
 
 install:
 	pip install -r requirements.txt
+
+install-dev:
+	pip install -r requirements.txt
+	pip install -r requirements-dev.txt
 
 dev:
 	uvicorn app.cmd.main:app --reload --host 0.0.0.0 --port 8000
@@ -53,6 +62,18 @@ migration-history:
 
 test:
 	pytest -v
+
+test-unit:
+	pytest tests/unit -v
+
+test-integration:
+	pytest tests/integration -v
+
+test-cov:
+	pytest --cov=app --cov-report=html --cov-report=term
+
+test-watch:
+	pytest-watch -- -v
 
 lint:
 	flake8 app/ tests/
