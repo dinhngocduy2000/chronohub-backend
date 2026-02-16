@@ -1,33 +1,35 @@
 # Tests Directory ✅
 
-**Status: 41/41 tests passing (100%)** 🎉
+**Status: 54/54 tests passing (100%)** 🎉
 
-This directory contains all tests for the ChronoHub Backend API.
+This directory contains all tests for the ChronoHub Backend API with complete authentication coverage.
 
 ## 📊 Quick Stats
 
 ```
-Total Tests:        41
+Total Tests:        54
 Unit Tests:         35
-Integration Tests:  6
+Integration Tests:  19
 Pass Rate:          100%
-Execution Time:     ~300ms
-Coverage:           ~85%
+Execution Time:     ~410ms
+Coverage:           ~90%
 Security:           Fully Tested 🔐
+Auth Coverage:      Complete (Unit + Integration)
 ```
 
 ## 📁 Structure
 
 ```
 tests/
-├── conftest.py                         # Shared fixtures and test configuration
+├── conftest.py                         # Shared fixtures (197 lines)
 ├── README.md                           # This file
-├── unit/                               # Unit tests (test individual components)
-│   ├── test_auth_middleware.py        # 🔐 Auth middleware tests (15 tests) ✨ NEW
+├── unit/                               # Unit tests (35 tests)
+│   ├── test_auth_middleware.py        # 🔐 Auth middleware (15 tests)
 │   ├── test_group_handler.py          # Handler tests (2 tests)
 │   ├── test_group_service.py          # Service tests (3 tests)
 │   └── test_group_handler_improved.py # Advanced examples (15 tests)
-└── integration/                        # Integration tests (test full endpoints)
+└── integration/                        # Integration tests (19 tests)
+    ├── test_auth_integration.py       # 🔐 Auth + endpoints (13 tests) ✨ NEW
     └── test_group_endpoints.py        # Endpoint tests (6 tests)
 ```
 
@@ -90,8 +92,8 @@ Reusable test data available in all tests:
 
 ## ✅ Test Coverage
 
-### 🔐 Authentication Middleware (`test_auth_middleware.py`) ✨ NEW
-**15 tests covering critical security**
+### 🔐 Authentication - Unit Tests (`test_auth_middleware.py`)
+**15 tests covering middleware logic in isolation**
 - ✅ Valid token authentication
 - ✅ Missing token (401)
 - ✅ Expired token detection
@@ -103,6 +105,20 @@ Reusable test data available in all tests:
 - ✅ Edge cases & error handling
 
 See [AUTH_TESTING_SUMMARY.md](../AUTH_TESTING_SUMMARY.md) for details.
+
+### 🔐 Authentication - Integration Tests (`test_auth_integration.py`) ✨ NEW
+**13 tests covering auth with real HTTP endpoints**
+- ✅ Endpoint with valid token succeeds
+- ✅ Endpoint without token blocked (401)
+- ✅ Endpoint with expired token blocked
+- ✅ Endpoint with invalid token blocked
+- ✅ Endpoint with forged token blocked
+- ✅ User not found scenarios (401)
+- ✅ Multiple requests with same token
+- ✅ Nearly expired token edge case
+- ✅ Service exception handling
+
+See [AUTH_INTEGRATION_COVERAGE.md](../AUTH_INTEGRATION_COVERAGE.md) for details.
 
 ### Handler Layer (`test_group_handler.py`)
 - ✅ Successful creation
@@ -319,10 +335,11 @@ When adding new tests:
 ## 🎉 Success!
 
 You have a comprehensive test suite with:
-- ✅ 41 tests (100% passing)
-- ✅ Fast execution (~300ms)
+- ✅ 54 tests (100% passing)
+- ✅ Fast execution (~410ms)
 - ✅ Complete documentation
-- ✅ Security fully tested 🔐
+- ✅ Security tested at unit AND integration level 🔐
+- ✅ Authentication fully covered (28 tests)
 - ✅ CI/CD ready
 - ✅ Easy to maintain
 
