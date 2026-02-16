@@ -138,3 +138,59 @@ def auth_headers(mock_credential):
     return {
         "Authorization": "Bearer mock_token_for_testing"
     }
+
+
+# ============= Auth Middleware Fixtures =============
+
+@pytest.fixture
+def mock_request():
+    """Mock FastAPI Request object"""
+    request = Mock()
+    request.cookies = {}
+    return request
+
+
+@pytest.fixture
+def valid_jwt_token(mock_credential):
+    """Generate a valid JWT token for testing"""
+    from datetime import datetime, timedelta, timezone
+    import jwt
+    from app.core.config import settings
+    
+    payload = {
+        "id": str(mock_credential.id),
+        "email": mock_credential.email,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
+        "iat": datetime.now(timezone.utc),
+        "type": "access"
+    }
+    
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return token
+
+
+@pytest.fixture
+def expired_jwt_token(mock_credential):
+    """Generate an expired JWT token for testing"""
+    from datetime import datetime, timedelta, timezone
+    import jwt
+    from app.core.config import settings
+    
+    payload = {
+        "id": str(mock_credential.id),
+        "email": mock_credential.email,
+        "exp": datetime.now(timezone.utc) - timedelta(minutes=30),  # Expired!
+        "iat": datetime.now(timezone.utc) - timedelta(minutes=60),
+        "type": "access"
+    }
+    
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return token
+
+
+@pytest.fixture
+def mock_auth_service():
+    """Mock AuthService for middleware testing"""
+    service = Mock()
+    service.get_current_user = AsyncMock()
+    return service
