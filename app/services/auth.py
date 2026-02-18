@@ -178,18 +178,17 @@ class AuthService:
                         msg=f"User login for first time, creating default group..."
                     )
 
-                    new_group = (
-                        await self.group_service.create_group(
-                            group_create=GroupCreateDomain(
-                                name=f"{user.name}'s Group",
-                                description=f"Group created for {user.name} by default",
-                            ),
-                            credential=Credential(
-                                id=user.id, email=user.email, is_pending=False
-                            ),
-                            ctx=ctx,
+                    new_group = await self.group_service.create_group(
+                        group_create=GroupCreateDomain(
+                            name=f"{user.name}'s Group",
+                            description=f"Group created for {user.name} by default",
                         ),
+                        credential=Credential(
+                            id=user.id, email=user.email, is_pending=False
+                        ),
+                        ctx=ctx,
                     )
+
                     logger.info(
                         msg=f"Default group created successfully, updating user...",
                         context=ctx,
