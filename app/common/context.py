@@ -6,7 +6,7 @@ from uuid import UUID
 class AppContext(BaseModel):
     trace_id: UUID
     action: Optional[str] = ""
-    actor: Optional[str] = ""
+    actor: Optional[UUID] = ""
 
     def log_metadata(self):
         parts = []
