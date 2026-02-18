@@ -45,6 +45,7 @@ class UserRepository:
                 password=user_update.password,
                 image_url=user_update.image_url,
                 status=user_update.status,
+                active_group_id=user_update.active_group_id,
                 updated_at=func.now(),
             )
         )
