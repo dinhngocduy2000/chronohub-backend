@@ -3,13 +3,15 @@ from typing import List, TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
-from app.common.enum.event_priority import EventPriority
+from app.common.enum.event_priority import EventCategory, EventPriority
+from app.common.schemas.events import EventDetailInfo, EventListInfo
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQL_UUID
 
 if TYPE_CHECKING:
     from app.models.event_tag import EventTag
+    from app.models.user import User
 
 
 class Event(Base):
@@ -30,34 +32,73 @@ class Event(Base):
         index=True,
     )
 
-    name: Mapped[str] = mapped_column(String(50), nullable=False)
-    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     destination: Mapped[str] = mapped_column(String(255), nullable=False)
     cost: Mapped[str] = mapped_column(String(255), nullable=False)
-    start_date: Mapped[datetime] = mapped_column(
+    start_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         index=True,
     )
-    end_date: Mapped[datetime] = mapped_column(
+    owner_id: Mapped[UUID] = mapped_column(
+        PostgreSQL_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    end_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+
     priority: Mapped[EventPriority] = mapped_column(
         Enum(EventPriority), nullable=False, default=EventPriority.MEDIUM, index=True
     )
+    category: Mapped[EventCategory] = mapped_column(
+        Enum(EventCategory), nullable=False, default=EventCategory.OTHER, index=True
+    )
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        nullable=False,
+        nullable=True,
         server_default=func.now(),
         onupdate=func.now(),
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True, server_default=func.now()
+    )
 
     tags: Mapped[List["EventTag"]] = relationship("EventTag", back_populates="event")
-
+    owner: Mapped["User"] = relationship("User", back_populates="events")  # type: ignore
     __table_args__ = (
-        Index("ix_events_group_start_date", "group_id", "start_date"),
+        Index("ix_events_group_start_time", "group_id", "start_time"),
         Index("ix_events_group_priority", "group_id", "priority"),
     )
+
+    def viewList(self) -> EventListInfo:
+        return EventListInfo(
+            id=self.id,
+            name=self.name,
+            start_time=self.start_time,
+            end_time=self.end_time,
+            priority=self.priority,
+            category=self.category,
+        )
+
+    def viewInfo(self) -> EventDetailInfo:
+        return EventDetailInfo(
+            id=self.id,
+            name=self.name,
+            destination=self.destination,
+            cost=self.cost,
+            start_time=self.start_time,
+            end_time=self.end_time,
+            priority=self.priority,
+            category=self.category,
+            description=self.description,
+            tags=[tag.tag.id for tag in self.tags],
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            group_id=self.group_id,
+            owner_id=self.owner_id,
+        )
