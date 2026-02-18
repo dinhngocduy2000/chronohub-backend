@@ -2,8 +2,12 @@ from typing import Optional
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.context import AppContext
+from app.common.middleware.logger import Logger
 from app.common.schemas.group import GroupCreateDomain, GroupInfo, GroupQuery
 from app.models.group import Group
+
+logger = Logger()
 
 
 class GroupRepository:
@@ -21,22 +25,30 @@ class GroupRepository:
         return stmt
 
     async def create_group(
-        self, session: AsyncSession, group_create: GroupCreateDomain
+        self, session: AsyncSession, group_create: GroupCreateDomain, ctx: AppContext
     ) -> GroupInfo:
-        new_group = Group()
-        new_group.name = group_create.name
-        new_group.description = group_create.description
-        new_group.owner_id = group_create.owner_id
-        session.add(new_group)
-        await session.flush()
-        return new_group.view()
+        try:
+            new_group = Group()
+            new_group.name = group_create.name
+            new_group.description = group_create.description
+            new_group.owner_id = group_create.owner_id
+            session.add(new_group)
+            await session.flush()
+            return new_group.view()
+        except Exception as e:
+            logger.error(msg=f"Create group repository: Exception: {e}", context=ctx)
+            raise e
 
     async def get_group(
-        self, session: AsyncSession, query: GroupQuery
+        self, session: AsyncSession, query: GroupQuery, ctx: AppContext
     ) -> Optional[Group]:
 
-        stmt = select(Group)
-        stmt = self._prepare_query(query, stmt)
-        result = await session.execute(stmt)
-        group = result.scalar_one_or_none()
-        return group if group else None
+        try:
+            stmt = select(Group)
+            stmt = self._prepare_query(query, stmt)
+            result = await session.execute(stmt)
+            group = result.scalar_one_or_none()
+            return group if group else None
+        except Exception as e:
+            logger.error(msg=f"Get group repository: Exception: {e}", context=ctx)
+            raise e

@@ -177,25 +177,30 @@ class AuthService:
                     logger.info(
                         msg=f"User login for first time, creating default group..."
                     )
+
+                    new_group = (
+                        await self.group_service.create_group(
+                            group_create=GroupCreateDomain(
+                                name=f"{user.name}'s Group",
+                                description=f"Group created for {user.name} by default",
+                            ),
+                            credential=Credential(
+                                id=user.id, email=user.email, is_pending=False
+                            ),
+                            ctx=ctx,
+                        ),
+                    )
+                    logger.info(
+                        msg=f"Default group created successfully, updating user...",
+                        context=ctx,
+                    )
                     user_update = UserUpdate(
                         name=user.name,
                         email=user.email,
                         password=user.password,
                         image_url=user.image_url,
                         status=UserStatus.ACTIVE,
-                    )
-                    new_group = GroupCreateDomain(
-                        name=f"{user.name}'s Group",
-                        description=f"Group created for {user.name} by default",
-                    )
-                    asyncio.create_task(
-                        self.group_service.create_group(
-                            group_create=new_group,
-                            credential=Credential(
-                                id=user.id, email=user.email, is_pending=False
-                            ),
-                            ctx=ctx,
-                        ),
+                        active_group_id=new_group.id,
                     )
                     asyncio.create_task(
                         self.user_service.update_user(

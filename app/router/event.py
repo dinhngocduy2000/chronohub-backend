@@ -30,11 +30,20 @@ class EventRouter:
                                 "id": "550e8400-e29b-41d4-a716-446655440000",
                                 "name": "Event 1",
                                 "description": "Event 1 description",
-                                "members": [
+                                "destination": "Event 1 destination",
+                                "cost": "Event 1 cost",
+                                "start_time": "2026-01-01T00:00:00Z",
+                                "end_time": "2026-01-01T00:00:00Z",
+                                "priority": "Event 1 priority",
+                                "category": "Event 1 category",
+                                "owner_id": "550e8400-e29b-41d4-a716-446655440000",
+                                "group_id": "550e8400-e29b-41d4-a716-446655440000",
+                                "created_at": "2026-01-01T00:00:00Z",
+                                "updated_at": "2026-01-01T00:00:00Z",
+                                "tags": [
                                     {
                                         "id": "550e8400-e29b-41d4-a716-446655440000",
-                                        "name": "User 1",
-                                        "email": "user1@example.com",
+                                        "name": "Tag 1",
                                     }
                                 ],
                             }

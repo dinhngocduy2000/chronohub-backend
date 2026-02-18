@@ -33,9 +33,10 @@ class EventService:
                             start_time=event_create.start_time,
                             end_time=event_create.end_time,
                             group_id=event_create.group_id,
-                            owner_id=event_create.owner_id,
+                            owner_id=ctx.actor,
                         ),
                         session=session,
+                        ctx=ctx,
                     )
                 )
                 if event_within_time_span_same_owner_group is not None:
@@ -49,11 +50,11 @@ class EventService:
                         message="Event duration must be at least 15 minutes"
                     )
 
-                new_event = self.repo.event_repo().create(
+                new_event = await self.repo.event_repo().create(
                     session=session,
                     event_create=EventCreateDomain(
-                        **event_create.model_dump(),
-                        owner_id=UUID(ctx.actor),
+                        **event_create.model_dump(mode='python'),
+                        owner_id=ctx.actor,
                     ),
                     ctx=ctx,
                 )

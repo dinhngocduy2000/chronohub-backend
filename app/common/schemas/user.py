@@ -20,6 +20,7 @@ class UserInfo(UserBase):
     created_at: datetime = Field(None, description="User's created at")
     updated_at: datetime = Field(None, description="User's updated at")
     image_url: Optional[str] = Field(None, description="User's image url")
+    group_id: Optional[UUID] = Field(None, description="User's group id")
 
 
 class UserQuery(BaseModel):
@@ -59,6 +60,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = Field(None, description="User's password")
     image_url: Optional[str] = Field(None, description="User's image url")
     status: Optional[UserStatus] = Field(None, description="User's status")
+    active_group_id: Optional[UUID] = Field(None, description="User's active group id")
 
 
 class UserCreate(BaseModel):

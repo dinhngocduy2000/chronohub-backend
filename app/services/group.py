@@ -30,7 +30,7 @@ class GroupService:
                     raise BadRequestException(message="Group's name is required")
 
                 group_same_name = await self.repo.group_repo().get_group(
-                    session=session, query=GroupQuery(name=group_create.name)
+                    session=session, query=GroupQuery(name=group_create.name), ctx=ctx
                 )
                 if group_same_name is not None:
                     logger.error(
@@ -47,7 +47,7 @@ class GroupService:
                     owner_id=credential.id,
                 )
                 new_group = await self.repo.group_repo().create_group(
-                    session=session, group_create=group_create_domain
+                    session=session, group_create=group_create_domain, ctx=ctx
                 )
                 logger.info(msg=f"Group created successfully", context=ctx)
                 return new_group

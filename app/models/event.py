@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
@@ -57,19 +57,19 @@ class Event(Base):
     category: Mapped[EventCategory] = mapped_column(
         Enum(EventCategory), nullable=False, default=EventCategory.OTHER, index=True
     )
-    description: Mapped[str] = mapped_column(String(255), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(
+    description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         server_default=func.now(),
         onupdate=func.now(),
     )
-    created_at: Mapped[datetime] = mapped_column(
+    created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True, server_default=func.now()
     )
 
     tags: Mapped[List["EventTag"]] = relationship("EventTag", back_populates="event")
-    owner: Mapped["User"] = relationship("User", back_populates="events")  # type: ignore
+    owner: Mapped["User"] = relationship("User")  # type: ignore
     __table_args__ = (
         Index("ix_events_group_start_time", "group_id", "start_time"),
         Index("ix_events_group_priority", "group_id", "priority"),
@@ -86,6 +86,13 @@ class Event(Base):
         )
 
     def viewInfo(self) -> EventDetailInfo:
+        # Safely access tags relationship - avoid lazy loading in async context
+        try:
+            tag_ids = [tag.tag.id for tag in self.tags] if self.tags else []
+        except Exception:
+            # If tags aren't loaded or accessible, return empty list
+            tag_ids = []
+            
         return EventDetailInfo(
             id=self.id,
             name=self.name,
@@ -96,7 +103,7 @@ class Event(Base):
             priority=self.priority,
             category=self.category,
             description=self.description,
-            tags=[tag.tag.id for tag in self.tags],
+            tags=tag_ids,
             created_at=self.created_at,
             updated_at=self.updated_at,
             group_id=self.group_id,
