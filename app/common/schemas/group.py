@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 
-from app.common.schemas.user import UserInfo
+if TYPE_CHECKING:
+    from app.common.schemas.user import UserInfo
 
 
 class GroupInfo(BaseModel):

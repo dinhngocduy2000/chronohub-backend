@@ -64,7 +64,7 @@ class UserService:
 
         return login_response
 
-    async def create_user(self, user_create: UserCreate) -> UserInfo:
+    async def create_user(self, user_create: UserCreate, ctx: AppContext) -> UserInfo:
         async def _create_user(session: AsyncSession) -> UserInfo:
             if user_create.email is None:
                 raise BadRequestException(message="Email is required")
@@ -74,7 +74,7 @@ class UserService:
                 raise BadRequestException(message="Name is required")
 
             user_with_same_email = await self.repo.user_repo().get(
-                session=session, query=UserQuery(email=user_create.email)
+                session=session, query=UserQuery(email=user_create.email), ctx=ctx
             )
 
             if user_with_same_email is not None:
@@ -101,7 +101,7 @@ class UserService:
     ) -> UserInfo:
         async def _update_user(session: AsyncSession) -> UserInfo:
             user = await self.repo.user_repo().get(
-                session=session, query=UserQuery(id=user_id)
+                session=session, query=UserQuery(id=user_id), ctx=ctx
             )
 
             user_with_same_email = None
@@ -112,7 +112,7 @@ class UserService:
 
             if user_update.email is not None:
                 user_with_same_email = await self.repo.user_repo().get(
-                    session=session, query=UserQuery(email=user_update.email)
+                    session=session, query=UserQuery(email=user_update.email), ctx=ctx
                 )
 
             if user_with_same_email is not None and user_with_same_email.id != user_id:
@@ -132,7 +132,7 @@ class UserService:
     async def get_user_by_email(self, email: str, ctx: AppContext) -> UserInfo:
         async def _get_user_by_email(session: AsyncSession) -> UserInfo:
             user = await self.repo.user_repo().get(
-                session=session, query=UserQuery(email=email)
+                session=session, query=UserQuery(email=email), ctx=ctx
             )
 
             return user.view() if user else None

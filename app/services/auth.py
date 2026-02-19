@@ -9,6 +9,7 @@ from app.common.schemas.user import (
     Credential,
     UserCreate,
     UserInfo,
+    UserJoinOption,
     UserLogin,
     UserLoginResponse,
     UserQuery,
@@ -96,7 +97,7 @@ class AuthService:
             )
 
             user_with_same_email = await self.repo.user_repo().get(
-                session=session, query=UserQuery(email=user_create.email)
+                session=session, query=UserQuery(email=user_create.email), ctx=ctx
             )
 
             if user_with_same_email is not None:
@@ -136,7 +137,7 @@ class AuthService:
                     msg=f"Checking user email... {login_request.email}", context=ctx
                 )
                 user = await self.repo.user_repo().get(
-                    session=session, query=UserQuery(email=login_request.email)
+                    session=session, query=UserQuery(email=login_request.email), ctx=ctx
                 )
                 if user is None:
                     logger.error(
@@ -227,7 +228,7 @@ class AuthService:
                     logger.error(msg=f"Invalid token type", context=ctx)
                     raise BadRequestException(message="Invalid token type")
                 user = await self.repo.user_repo().get(
-                    session=session, query=UserQuery(id=token["id"])
+                    session=session, query=UserQuery(id=token["id"]), ctx=ctx
                 )
                 if user is None:
                     logger.error(
@@ -278,12 +279,23 @@ class AuthService:
         async def _get_current_user(session: AsyncSession) -> UserInfo:
             logger.info(msg=f"Getting user by id {user_id}...", context=ctx)
             user = await self.repo.user_repo().get(
-                session=session, query=UserQuery(id=user_id)
+                session=session,
+                query=UserQuery(id=user_id),
+                ctx=ctx,
+                options=UserJoinOption(included_owned_groups=True),
             )
             if user is None:
                 logger.error(msg=f"User with id {user_id} not found", context=ctx)
                 raise BadRequestException(message="User not found")
-            logger.info(msg=f"User found with id {user_id}", context=ctx)
-            return user.view()
+            logger.info(
+                msg=f"User found with id {user_id}: {user.__dict__}", context=ctx
+            )
+            user_info_data = user.view().model_dump(
+                mode="python", exclude={"owned_groups"}
+            )
+            return UserInfo(
+                **user_info_data,
+                owned_groups=[group.view() for group in user.owned_groups],
+            )
 
         return await self.repo.transaction_wrapper(_get_current_user)

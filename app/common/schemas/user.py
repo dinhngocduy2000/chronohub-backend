@@ -1,12 +1,13 @@
 from datetime import datetime
 import re
 import string
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.common.enum.user_status import UserStatus
 from app.common.exceptions import BadRequestException
+from app.common.schemas.group import GroupInfo
 
 
 class UserBase(BaseModel):
@@ -21,6 +22,9 @@ class UserInfo(UserBase):
     updated_at: datetime = Field(None, description="User's updated at")
     image_url: Optional[str] = Field(None, description="User's image url")
     group_id: Optional[UUID] = Field(None, description="User's group id")
+    owned_groups: Optional[List[GroupInfo]] = Field(
+        None, description="User's owned groups"
+    )
 
 
 class UserQuery(BaseModel):
@@ -61,6 +65,12 @@ class UserUpdate(BaseModel):
     image_url: Optional[str] = Field(None, description="User's image url")
     status: Optional[UserStatus] = Field(None, description="User's status")
     active_group_id: Optional[UUID] = Field(None, description="User's active group id")
+
+
+class UserJoinOption(BaseModel):
+    included_owned_groups: Optional[bool] = Field(
+        None, description="Whether to include groups in the response"
+    )
 
 
 class UserCreate(BaseModel):
@@ -121,3 +131,6 @@ class UserLogin(BaseModel):
             raise BadRequestException("Password is required")
 
         return password
+
+
+GroupInfo.model_rebuild(_types_namespace={"UserInfo": UserInfo})
