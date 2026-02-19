@@ -1,10 +1,15 @@
 from typing import List, Optional
 from sqlalchemy import UUID, Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
+from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
-from app.common.schemas.user import UserInfo, UserQuery, UserUpdate
+from app.common.middleware.logger import Logger
+from app.common.schemas.user import UserInfo, UserJoinOption, UserQuery, UserUpdate
 from app.models.user import User
+
+logger = Logger()
 
 
 class UserRepository:
@@ -23,6 +28,12 @@ class UserRepository:
         if query.status is not None:
             stmt = stmt.where(User.status == query.status)
 
+        return stmt
+
+    def _join_query(self, stmt: Select, options: Optional[UserJoinOption]) -> Select:
+        if options is not None:
+            if options.included_owned_groups:
+                stmt = stmt.options(joinedload(User.owned_groups))
         return stmt
 
     async def create_user(self, session: AsyncSession, user_info: User) -> UserInfo:
@@ -58,9 +69,20 @@ class UserRepository:
     async def get_user_by_id(self, session: AsyncSession, user_id: str) -> None:
         pass
 
-    async def get(self, session: AsyncSession, query: UserQuery) -> Optional[User]:
-        stmt = select(User)
-        stmt = self._prepare_query(query, stmt)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
-        return user if user else None
+    async def get(
+        self,
+        session: AsyncSession,
+        query: UserQuery,
+        ctx: AppContext,
+        options: Optional[UserJoinOption] = None,
+    ) -> Optional[User]:
+        try:
+            stmt = select(User)
+            stmt = self._join_query(stmt, options)
+            stmt = self._prepare_query(query, stmt)
+            result = await session.execute(stmt)
+            user = result.scalars().first()
+            return user if user else None
+        except Exception as e:
+            logger.error(msg=f"Get user repository: Exception: {e}", context=ctx)
+            raise e
