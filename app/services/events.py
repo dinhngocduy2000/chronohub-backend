@@ -1,13 +1,18 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import List
 from uuid import UUID
+
+from sqlalchemy import String
 from app.common.context import AppContext
 from app.common.exceptions import BadRequestException
 from app.common.middleware.logger import Logger
 from app.common.schemas.events import (
+    EventCalendarView,
     EventCreate,
     EventCreateDomain,
     EventDetailInfo,
     EventQuery,
+    ListEventQuery,
 )
 from app.common.schemas.user import Credential
 from app.repository.registry import Registry
@@ -93,3 +98,60 @@ class EventService:
                 raise e
 
         return await self.repo.transaction_wrapper(_create_event)
+
+    async def list_calendar_events(
+        self, query: ListEventQuery, ctx: AppContext
+    ) -> List[EventCalendarView]:
+        async def _list_calendar_events(
+            session: AsyncSession,
+        ) -> List[EventCalendarView]:
+            try:
+                events = await self.repo.event_repo().list(
+                    session=session,
+                    query=query,
+                    ctx=ctx,
+                )
+
+                events_dict = [event.__dict__ for event in events]
+                logger.info(msg=f"Events: {len(events_dict)}", context=ctx)
+                calendar_events: List[EventCalendarView] = []
+                for event in events_dict:
+                    latest_event_item = None
+                    if len(calendar_events) == 0:
+                        latest_event_item = None
+                    else:
+                        latest_event_item = calendar_events[len(calendar_events) - 1]
+
+                    event_start_time = event["start_time"].day
+
+                    if (
+                        latest_event_item is None
+                    ):  # If no events in calendar, add new event
+                        logger.info(
+                            msg=f"Adding new event to calendar: {event}", context=ctx
+                        )
+                        calendar_events.append(
+                            EventCalendarView(date=event_start_time, events=[event])
+                        )
+
+                    elif latest_event_item.date == event_start_time:
+                        latest_event_item.events.append(event)
+                        calendar_events[len(calendar_events) - 1] = latest_event_item
+                        logger.info(
+                            msg=f"Updated latest event item: {len(calendar_events)}",
+                            context=ctx,
+                        )
+
+                    elif latest_event_item.date != event_start_time:
+                        calendar_events.append(
+                            EventCalendarView(date=event_start_time, events=[event])
+                        )
+
+                return calendar_events
+            except Exception as e:
+                logger.error(
+                    msg=f"List calendar events service: Exception: {e}", context=ctx
+                )
+                raise e
+
+        return await self.repo.transaction_wrapper(_list_calendar_events)

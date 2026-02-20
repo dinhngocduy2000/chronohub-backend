@@ -1,5 +1,6 @@
-from typing import Optional
-from sqlalchemy import Select, select
+from datetime import datetime
+from typing import List, Optional
+from sqlalchemy import Select, extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.event import Event
 from app.common.context import AppContext
@@ -7,7 +8,9 @@ from app.common.middleware.logger import Logger
 from app.common.schemas.events import (
     EventCreateDomain,
     EventDetailInfo,
+    EventListInfo,
     EventQuery,
+    ListEventQuery,
 )
 
 logger = Logger()
@@ -63,21 +66,21 @@ class EventRepository:
         try:
             # Use mode='python' to ensure proper UUID serialization
             # Exclude 'tags' from dump since it's a relationship, not a column
-            event_data = event_create.model_dump(mode="python", exclude={'tags'})
+            event_data = event_create.model_dump(mode="python", exclude={"tags"})
             new_event = Event(**event_data)
             session.add(new_event)
             await session.flush()
-            
+
             # Refresh to get server-side defaults (created_at, updated_at)
             await session.refresh(new_event)
-            
+
             # TODO: Handle tags separately if needed
             # if event_create.tags:
             #     for tag_id in event_create.tags:
             #         event_tag = EventTag(event_id=new_event.id, tag_id=tag_id)
             #         session.add(event_tag)
             #     await session.flush()
-            
+
             return new_event.viewInfo()
         except Exception as e:
             logger.error(msg=f"Create event repository: Exception: {e}", context=ctx)
@@ -95,4 +98,28 @@ class EventRepository:
             return event.viewInfo() if event else None
         except Exception as e:
             logger.error(msg=f"Get event repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def list(
+        self, session: AsyncSession, query: ListEventQuery, ctx: AppContext
+    ) -> List[EventListInfo]:
+        try:
+            stmt = select(Event)
+
+            stmt = stmt.order_by(Event.start_time)
+            stmt = stmt.where(
+                extract("month", Event.start_time) == query.month,
+                extract("year", Event.start_time) == query.year,
+            )
+            if query.owner_id is not None:
+                stmt = stmt.where(Event.owner_id == query.owner_id)
+
+            if query.group_id is not None:
+                stmt = stmt.where(Event.group_id == query.group_id)
+
+            result = await session.execute(stmt)
+            events = result.scalars().all()
+            return [event.viewList() for event in events] if len(events) > 0 else []
+        except Exception as e:
+            logger.error(msg=f"List event repository: Exception: {e}", context=ctx)
             raise e

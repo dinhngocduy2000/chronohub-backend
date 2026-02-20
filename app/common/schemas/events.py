@@ -67,3 +67,16 @@ class EventQuery(PaginationBaseRequest):
     )
     owner_id: Optional[UUID] = Field(default=None, description="Event's owner id")
     tags: Optional[List[UUID]] = Field(default=None, description="Event's tags")
+
+
+class ListEventQuery(BaseModel):
+    month: int = Field(None, description="List event's month")
+    year: int = Field(None, description="List event's year")
+    group_id: UUID = Field(None, description="List event's group id")
+    owner_id: Optional[UUID] = Field(None, description="List event's owner id")
+    tags: Optional[List[UUID]] = Field(default=None, description="List event's tags")
+
+
+class EventCalendarView(BaseModel):
+    date: int = Field(None, description="Calendar view's date")
+    events: List[EventListInfo] = Field(None, description="Calendar view's events")

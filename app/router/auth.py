@@ -94,6 +94,15 @@ class AuthRouter:
                                 "created_at": "2026-01-25T10:30:00Z",
                                 "updated_at": "2026-01-25T10:30:00Z",
                                 "image_url": None,
+                                "owned_groups": [
+                                    {
+                                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                                        "name": "Group 1",
+                                        "created_at": "2026-01-25T10:30:00Z",
+                                        "updated_at": "2026-01-25T10:30:00Z",
+                                        "members": [],
+                                    }
+                                ],
                             }
                         }
                     },
