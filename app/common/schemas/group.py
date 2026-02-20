@@ -14,7 +14,7 @@ class GroupInfo(BaseModel):
     name: str = Field(None, description="Group's name")
     created_at: datetime = Field(None, description="Group's created at")
     updated_at: datetime = Field(None, description="Group's updated at")
-    members: List[UserInfo] = Field(None, description="Group's members")
+    members: Optional[List[UserInfo]] = Field(None, description="Group's members")
 
 
 class GroupCreateDTO(BaseModel):

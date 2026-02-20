@@ -58,6 +58,6 @@ class Group(Base):
             members=(
                 [member.user.view() for member in self.members]
                 if members_loaded
-                else []
+                else None
             ),
         )
