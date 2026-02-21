@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date as Date, datetime
 from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
@@ -78,5 +78,5 @@ class ListEventQuery(BaseModel):
 
 
 class EventCalendarView(BaseModel):
-    date: int = Field(None, description="Calendar view's date")
+    date: Date = Field(None, description="Calendar view's date")
     events: List[EventListInfo] = Field(None, description="Calendar view's events")
