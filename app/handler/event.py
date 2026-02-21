@@ -1,7 +1,7 @@
 from typing import List
 from uuid import uuid4
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from app.common.context import AppContext
 from app.common.enum.context_actions import CREATE_EVENT, LIST_CALENDAR_EVENTS
 from app.common.exceptions.decorator import exception_handler
@@ -34,7 +34,7 @@ class EventHandler:
     @exception_handler
     async def list_calendar_events(
         self,
-        query: ListEventQuery = Depends(),
+        query: ListEventQuery = Query(),
         credential: Credential = Depends(AuthMiddleware.auth_middleware),
     ) -> List[EventCalendarView]:
         ctx = AppContext(

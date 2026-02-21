@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from itertools import groupby
 from typing import List
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from app.common.schemas.events import (
     EventCreate,
     EventCreateDomain,
     EventDetailInfo,
+    EventListInfo,
     EventQuery,
     ListEventQuery,
 )
@@ -112,40 +114,10 @@ class EventService:
                     ctx=ctx,
                 )
 
-                events_dict = [event.__dict__ for event in events]
-                logger.info(msg=f"Events: {len(events_dict)}", context=ctx)
-                calendar_events: List[EventCalendarView] = []
-                for event in events_dict:
-                    latest_event_item = None
-                    if len(calendar_events) == 0:
-                        latest_event_item = None
-                    else:
-                        latest_event_item = calendar_events[len(calendar_events) - 1]
-
-                    event_start_time = event["start_time"].day
-
-                    if (
-                        latest_event_item is None
-                    ):  # If no events in calendar, add new event
-                        logger.info(
-                            msg=f"Adding new event to calendar: {event}", context=ctx
-                        )
-                        calendar_events.append(
-                            EventCalendarView(date=event_start_time, events=[event])
-                        )
-
-                    elif latest_event_item.date == event_start_time:
-                        latest_event_item.events.append(event)
-                        calendar_events[len(calendar_events) - 1] = latest_event_item
-                        logger.info(
-                            msg=f"Updated latest event item: {len(calendar_events)}",
-                            context=ctx,
-                        )
-
-                    elif latest_event_item.date != event_start_time:
-                        calendar_events.append(
-                            EventCalendarView(date=event_start_time, events=[event])
-                        )
+                calendar_events = [
+                    EventCalendarView(date=day, events=list(group))
+                    for day, group in groupby(events, key=lambda e: e.start_time.date())
+                ]
 
                 return calendar_events
             except Exception as e:
