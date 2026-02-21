@@ -92,7 +92,7 @@ class Event(Base):
         except Exception:
             # If tags aren't loaded or accessible, return empty list
             tag_ids = []
-            
+
         return EventDetailInfo(
             id=self.id,
             name=self.name,

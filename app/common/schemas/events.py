@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.common.enum.event_priority import EventCategory, EventPriority
 from app.common.schemas.common import PaginationBaseRequest
+from app.common.schemas.user import UserInfo
 
 
 class EventCreate(BaseModel):
@@ -48,6 +49,7 @@ class EventDetailInfo(BaseModel):
     updated_at: datetime = Field(None, description="Event's updated at")
     group_id: UUID = Field(None, description="Event's group id")
     owner_id: UUID = Field(None, description="Event's owner id")
+    owner: Optional[UserInfo] = Field(default=None, description="Event's owner")
 
 
 class EventQuery(PaginationBaseRequest):
@@ -80,3 +82,12 @@ class ListEventQuery(BaseModel):
 class EventCalendarView(BaseModel):
     date: Date = Field(None, description="Calendar view's date")
     events: List[EventListInfo] = Field(None, description="Calendar view's events")
+
+
+class EventJoinOptions(BaseModel):
+    include_tags: Optional[bool] = Field(
+        default=False, description="Include tags in the response"
+    )
+    include_owner: Optional[bool] = Field(
+        default=False, description="Include owner in the response"
+    )

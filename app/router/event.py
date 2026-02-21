@@ -24,6 +24,16 @@ class EventRouter:
         )
 
         self.route.add_api_route(
+            path="/{id}",
+            endpoint=self.handler.get_event_detail,
+            methods=["GET"],
+            response_model=EventDetailInfo,
+            status_code=status.HTTP_200_OK,
+            summary="Get event detail",
+            description="Get event detail by id",
+        )
+
+        self.route.add_api_route(
             path="/create",
             endpoint=self.handler.create_event,
             methods=["POST"],

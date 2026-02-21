@@ -1,15 +1,20 @@
 from typing import List
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from fastapi import Depends, Query
+from fastapi import Depends, Path, Query
 from app.common.context import AppContext
-from app.common.enum.context_actions import CREATE_EVENT, LIST_CALENDAR_EVENTS
+from app.common.enum.context_actions import (
+    CREATE_EVENT,
+    GET_EVENT_DETAIL,
+    LIST_CALENDAR_EVENTS,
+)
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.common.schemas.events import (
     EventCalendarView,
     EventCreate,
     EventDetailInfo,
+    EventQuery,
     ListEventQuery,
 )
 from app.common.schemas.user import Credential
@@ -41,3 +46,13 @@ class EventHandler:
             trace_id=uuid4(), action=LIST_CALENDAR_EVENTS, actor=credential.id
         )
         return await self.service.list_calendar_events(query, ctx=ctx)
+
+    @exception_handler
+    async def get_event_detail(
+        self,
+        id: UUID = Path(..., description="Event id"),
+        credential: Credential = Depends(AuthMiddleware.auth_middleware),
+    ) -> EventDetailInfo:
+        ctx = AppContext(trace_id=uuid4(), action=GET_EVENT_DETAIL, actor=credential.id)
+        query: EventQuery = EventQuery(id=id)
+        return await self.service.get_event_detail(query, ctx=ctx)

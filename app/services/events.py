@@ -12,6 +12,7 @@ from app.common.schemas.events import (
     EventCreate,
     EventCreateDomain,
     EventDetailInfo,
+    EventJoinOptions,
     EventListInfo,
     EventQuery,
     ListEventQuery,
@@ -38,19 +39,19 @@ class EventService:
                     msg=f"Checking if there is an event within the time span and same owner and group...",
                     context=ctx,
                 )
-                event_within_time_span_same_owner_group = (
-                    await self.repo.event_repo().get(
-                        event_query=EventQuery(
-                            start_time=event_create.start_time,
-                            end_time=event_create.end_time,
-                            group_id=event_create.group_id,
-                            owner_id=ctx.actor,
-                        ),
-                        session=session,
-                        ctx=ctx,
-                    )
+                event_within_time_span_same = await self.repo.event_repo().get(
+                    session=session,
+                    query=EventQuery(
+                        start_time=event_create.start_time,
+                        end_time=event_create.end_time,
+                        group_id=event_create.group_id,
+                        owner_id=ctx.actor,
+                    ),
+                    ctx=ctx,
+                    options=EventJoinOptions(include_owner=False),
                 )
-                if event_within_time_span_same_owner_group is not None:
+
+                if event_within_time_span_same is not None:
                     logger.error(
                         msg=f"There is an event(s) within the time span",
                         context=ctx,
@@ -127,3 +128,32 @@ class EventService:
                 raise e
 
         return await self.repo.transaction_wrapper(_list_calendar_events)
+
+    async def get_event_detail(
+        self, query: EventQuery, ctx: AppContext
+    ) -> EventDetailInfo:
+        async def _get_event_detail(session: AsyncSession) -> EventDetailInfo:
+            try:
+                event = await self.repo.event_repo().get(
+                    session=session,
+                    query=query,
+                    ctx=ctx,
+                    options=EventJoinOptions(include_owner=True),
+                )
+
+                if event is None:
+                    logger.error(msg=f"Event with id {query.id} not found", context=ctx)
+                    raise BadRequestException(message="Event not found")
+
+                event_info = event.viewInfo()
+                event_info.owner = event.owner.view()
+
+                logger.info(msg=f"Event owner: {event}", context=ctx)
+                return event_info
+            except Exception as e:
+                logger.error(
+                    msg=f"Get event detail service: Exception: {e}", context=ctx
+                )
+                raise e
+
+        return await self.repo.transaction_wrapper(_get_event_detail)
