@@ -2,12 +2,14 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import Select, extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from app.models.event import Event
 from app.common.context import AppContext
 from app.common.middleware.logger import Logger
 from app.common.schemas.events import (
     EventCreateDomain,
     EventDetailInfo,
+    EventJoinOptions,
     EventListInfo,
     EventQuery,
     ListEventQuery,
@@ -60,6 +62,16 @@ class EventRepository:
             stmt = stmt.where(Event.owner_id == query.owner_id)
         return stmt
 
+    def _prepare_join(
+        self, stmt: Select, options: Optional[EventJoinOptions]
+    ) -> Select:
+        if options is not None:
+            # if options.include_tags:
+            #     stmt = stmt.options(joinedload(Event.tags))
+            if options.include_owner:
+                stmt = stmt.options(joinedload(Event.owner))
+        return stmt
+
     async def create(
         self, session: AsyncSession, event_create: EventCreateDomain, ctx: AppContext
     ) -> EventDetailInfo:
@@ -70,16 +82,7 @@ class EventRepository:
             new_event = Event(**event_data)
             session.add(new_event)
             await session.flush()
-
-            # Refresh to get server-side defaults (created_at, updated_at)
             await session.refresh(new_event)
-
-            # TODO: Handle tags separately if needed
-            # if event_create.tags:
-            #     for tag_id in event_create.tags:
-            #         event_tag = EventTag(event_id=new_event.id, tag_id=tag_id)
-            #         session.add(event_tag)
-            #     await session.flush()
 
             return new_event.viewInfo()
         except Exception as e:
@@ -87,25 +90,35 @@ class EventRepository:
             raise e
 
     async def get(
-        self, session: AsyncSession, event_query: EventQuery, ctx: AppContext
-    ) -> Optional[EventDetailInfo]:
+        self,
+        session: AsyncSession,
+        query: EventQuery,
+        ctx: AppContext,
+        options: Optional[EventJoinOptions],
+    ) -> Optional[Event]:
         try:
             stmt = select(Event)
-            stmt = self._prepare_query(query=event_query, stmt=stmt, ctx=ctx)
+            stmt = self._prepare_join(stmt=stmt, options=options)
+            stmt = self._prepare_query(query=query, stmt=stmt, ctx=ctx)
             result = await session.execute(stmt)
-            event = result.scalars().first()
+            event: Event = result.scalars().first()
 
-            return event.viewInfo() if event else None
+            return event
         except Exception as e:
             logger.error(msg=f"Get event repository: Exception: {e}", context=ctx)
             raise e
 
     async def list(
-        self, session: AsyncSession, query: ListEventQuery, ctx: AppContext
+        self,
+        session: AsyncSession,
+        query: ListEventQuery,
+        ctx: AppContext,
+        options: Optional[EventJoinOptions],
     ) -> List[EventListInfo]:
         try:
             stmt = select(Event)
 
+            stmt = self._prepare_join(stmt=stmt, options=options)
             stmt = stmt.order_by(Event.start_time)
             stmt = stmt.where(
                 extract("month", Event.start_time) == query.month,
