@@ -34,7 +34,7 @@ class EventRouter:
         )
 
         self.route.add_api_route(
-            path="/create",
+            path="/",
             endpoint=self.handler.create_event,
             methods=["POST"],
             response_model=EventDetailInfo,

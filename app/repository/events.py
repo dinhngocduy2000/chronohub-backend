@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+from uuid import uuid4
 from sqlalchemy import Select, extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -14,6 +15,7 @@ from app.common.schemas.events import (
     EventQuery,
     ListEventQuery,
 )
+from app.models.event_tag import EventTag
 
 logger = Logger()
 
@@ -66,8 +68,8 @@ class EventRepository:
         self, stmt: Select, options: Optional[EventJoinOptions]
     ) -> Select:
         if options is not None:
-            # if options.include_tags:
-            #     stmt = stmt.options(joinedload(Event.tags))
+            if options.include_tags:
+                stmt = stmt.options(joinedload(Event.tags).joinedload(EventTag.tag))
             if options.include_owner:
                 stmt = stmt.options(joinedload(Event.owner))
         return stmt
@@ -80,6 +82,11 @@ class EventRepository:
             # Exclude 'tags' from dump since it's a relationship, not a column
             event_data = event_create.model_dump(mode="python", exclude={"tags"})
             new_event = Event(**event_data)
+            if event_create.tags is not None and len(event_create.tags) > 0:
+                for tag_id in event_create.tags:
+                    event_tag = EventTag(event_id=new_event.id, tag_id=tag_id)
+                    session.add(event_tag)
+
             session.add(new_event)
             await session.flush()
             await session.refresh(new_event)
@@ -98,10 +105,10 @@ class EventRepository:
     ) -> Optional[Event]:
         try:
             stmt = select(Event)
-            stmt = self._prepare_join(stmt=stmt, options=options)
             stmt = self._prepare_query(query=query, stmt=stmt, ctx=ctx)
+            stmt = self._prepare_join(stmt=stmt, options=options)
             result = await session.execute(stmt)
-            event: Event = result.scalars().first()
+            event: Event = result.unique().scalars().first()
 
             return event
         except Exception as e:
@@ -131,7 +138,7 @@ class EventRepository:
                 stmt = stmt.where(Event.group_id == query.group_id)
 
             result = await session.execute(stmt)
-            events = result.scalars().all()
+            events = result.unique().scalars().all()
             return [event.viewList() for event in events] if len(events) > 0 else []
         except Exception as e:
             logger.error(msg=f"List event repository: Exception: {e}", context=ctx)

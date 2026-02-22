@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func, inspect
 from app.common.enum.event_priority import EventCategory, EventPriority
 from app.common.schemas.events import EventDetailInfo, EventListInfo
 from app.core.database import Base
@@ -86,13 +86,8 @@ class Event(Base):
         )
 
     def viewInfo(self) -> EventDetailInfo:
-        # Safely access tags relationship - avoid lazy loading in async context
-        try:
-            tag_ids = [tag.tag.id for tag in self.tags] if self.tags else []
-        except Exception:
-            # If tags aren't loaded or accessible, return empty list
-            tag_ids = []
-
+        insp = inspect(self)
+        tags_loaded = not insp.unloaded.intersection({"tags"})
         return EventDetailInfo(
             id=self.id,
             name=self.name,
@@ -103,9 +98,9 @@ class Event(Base):
             priority=self.priority,
             category=self.category,
             description=self.description,
-            tags=tag_ids,
             created_at=self.created_at,
             updated_at=self.updated_at,
             group_id=self.group_id,
             owner_id=self.owner_id,
+            tags=[tag.tag.view() for tag in self.tags] if tags_loaded else None,
         )

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.common.enum.event_priority import EventCategory, EventPriority
 from app.common.schemas.common import PaginationBaseRequest
+from app.common.schemas.tags import TagInfo
 from app.common.schemas.user import UserInfo
 
 
@@ -23,6 +24,7 @@ class EventCreate(BaseModel):
 
 class EventCreateDomain(EventCreate):
     owner_id: UUID = Field("", description="Event's owner id")
+    id: Optional[UUID] = Field("", description="Event's id")
 
 
 class EventListInfo(BaseModel):
@@ -44,7 +46,7 @@ class EventDetailInfo(BaseModel):
     priority: EventPriority = Field(None, description="Event's priority")
     category: EventCategory = Field(None, description="Event's category")
     description: str = Field(None, description="Event's description")
-    tags: Optional[List[UUID]] = Field(default=None, description="Event's tags")
+    tags: Optional[List[TagInfo]] = Field(default=None, description="Event's tags")
     created_at: datetime = Field(None, description="Event's created at")
     updated_at: datetime = Field(None, description="Event's updated at")
     group_id: UUID = Field(None, description="Event's group id")
@@ -91,3 +93,8 @@ class EventJoinOptions(BaseModel):
     include_owner: Optional[bool] = Field(
         default=False, description="Include owner in the response"
     )
+
+
+class EventTagCreate(BaseModel):
+    event_id: UUID = Field(None, description="Event's id")
+    tag_id: UUID = Field(None, description="Tag's id")

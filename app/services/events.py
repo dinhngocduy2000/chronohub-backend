@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from itertools import groupby
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import String
 from app.common.context import AppContext
@@ -30,6 +30,49 @@ class EventService:
     def __init__(self, repo: Registry) -> None:
         self.repo = repo
 
+    async def _check_event_exists(
+        self, query: EventQuery, session: AsyncSession, ctx: AppContext
+    ):
+        event_within_time_span_same_group = await self.repo.event_repo().get(
+            session=session,
+            query=query,
+            ctx=ctx,
+            options=EventJoinOptions(include_owner=False),
+        )
+
+        if event_within_time_span_same_group is not None:
+            logger.error(
+                msg=f"There is an event(s) within the time span",
+                context=ctx,
+            )
+            raise BadRequestException(
+                message="There is an event(s) within the time span"
+            )
+
+        logger.info(
+            msg=f"No event(s) within the time span, checking for event duration...",
+            context=ctx,
+        )
+
+    async def _check_event_duration(self, event_duration: timedelta, ctx: AppContext):
+        if event_duration < timedelta(seconds=0):
+            logger.error(msg="Event end time must be after start time")
+            raise BadRequestException(message="Event end time must be after start time")
+
+        if event_duration < timedelta(minutes=15):
+            logger.error(
+                msg=f"Event duration must be at least 15 minutes",
+                context=ctx,
+            )
+            raise BadRequestException(
+                message="Event duration must be at least 15 minutes"
+            )
+
+        logger.info(
+            msg=f"Event duration is valid, creating event...",
+            context=ctx,
+        )
+
     async def create_event(
         self, event_create: EventCreate, ctx: AppContext
     ) -> EventDetailInfo:
@@ -39,54 +82,27 @@ class EventService:
                     msg=f"Checking if there is an event within the time span and same owner and group...",
                     context=ctx,
                 )
-                event_within_time_span_same = await self.repo.event_repo().get(
-                    session=session,
+
+                await self._check_event_exists(
                     query=EventQuery(
                         start_time=event_create.start_time,
                         end_time=event_create.end_time,
                         group_id=event_create.group_id,
                         owner_id=ctx.actor,
                     ),
+                    session=session,
                     ctx=ctx,
-                    options=EventJoinOptions(include_owner=False),
                 )
 
-                if event_within_time_span_same is not None:
-                    logger.error(
-                        msg=f"There is an event(s) within the time span",
-                        context=ctx,
-                    )
-                    raise BadRequestException(
-                        message="There is an event(s) within the time span"
-                    )
-                logger.info(
-                    msg=f"No event(s) within the time span, checking for event duration...",
-                    context=ctx,
-                )
                 event_duration = event_create.end_time - event_create.start_time
 
-                if event_duration < timedelta(seconds=0):
-                    logger.error(msg="Event end time must be after start time")
-                    raise BadRequestException(
-                        message="Event end time must be after start time"
-                    )
+                await self._check_event_duration(event_duration=event_duration, ctx=ctx)
 
-                if event_duration < timedelta(minutes=15):
-                    logger.error(
-                        msg=f"Event duration must be at least 15 minutes",
-                        context=ctx,
-                    )
-                    raise BadRequestException(
-                        message="Event duration must be at least 15 minutes"
-                    )
-                logger.info(
-                    msg=f"Event duration is valid, creating event...",
-                    context=ctx,
-                )
                 new_event = await self.repo.event_repo().create(
                     session=session,
                     event_create=EventCreateDomain(
                         **event_create.model_dump(mode="python"),
+                        id=uuid4(),
                         owner_id=ctx.actor,
                     ),
                     ctx=ctx,
@@ -113,6 +129,7 @@ class EventService:
                     session=session,
                     query=query,
                     ctx=ctx,
+                    options=EventJoinOptions(include_tags=False),
                 )
 
                 calendar_events = [
@@ -138,7 +155,7 @@ class EventService:
                     session=session,
                     query=query,
                     ctx=ctx,
-                    options=EventJoinOptions(include_owner=True),
+                    options=EventJoinOptions(include_owner=True, include_tags=True),
                 )
 
                 if event is None:
@@ -148,7 +165,7 @@ class EventService:
                 event_info = event.viewInfo()
                 event_info.owner = event.owner.view()
 
-                logger.info(msg=f"Event owner: {event}", context=ctx)
+                logger.info(msg=f"Event detail info: {event_info}", context=ctx)
                 return event_info
             except Exception as e:
                 logger.error(
