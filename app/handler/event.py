@@ -5,6 +5,7 @@ from fastapi import Depends, Path, Query
 from app.common.context import AppContext
 from app.common.enum.context_actions import (
     CREATE_EVENT,
+    DELETE_EVENT,
     GET_EVENT_DETAIL,
     LIST_CALENDAR_EVENTS,
 )
@@ -56,3 +57,12 @@ class EventHandler:
         ctx = AppContext(trace_id=uuid4(), action=GET_EVENT_DETAIL, actor=credential.id)
         query: EventQuery = EventQuery(id=id)
         return await self.service.get_event_detail(query, ctx=ctx)
+
+    @exception_handler
+    async def delete_event(
+        self,
+        id: UUID = Path(..., description="Event id"),
+        credential: Credential = Depends(AuthMiddleware.auth_middleware),
+    ) -> None:
+        ctx = AppContext(trace_id=uuid4(), action=DELETE_EVENT, actor=credential.id)
+        return await self.service.delete_event(event_id=id, ctx=ctx)

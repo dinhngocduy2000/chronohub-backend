@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
-from uuid import uuid4
-from sqlalchemy import Select, extract, select
+from uuid import UUID, uuid4
+from sqlalchemy import Select, delete, extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from app.models.event import Event
@@ -101,7 +101,7 @@ class EventRepository:
         session: AsyncSession,
         query: EventQuery,
         ctx: AppContext,
-        options: Optional[EventJoinOptions],
+        options: Optional[EventJoinOptions] = None,
     ) -> Optional[Event]:
         try:
             stmt = select(Event)
@@ -142,4 +142,15 @@ class EventRepository:
             return [event.viewList() for event in events] if len(events) > 0 else []
         except Exception as e:
             logger.error(msg=f"List event repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def delete(
+        self, session: AsyncSession, event_id: UUID, ctx: AppContext
+    ) -> None:
+        try:
+            stmt = delete(Event).where(Event.id == event_id)
+            await session.execute(stmt)
+            await session.commit()
+        except Exception as e:
+            logger.error(msg=f"Delete event repository: Exception: {e}", context=ctx)
             raise e
