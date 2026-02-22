@@ -174,3 +174,26 @@ class EventService:
                 raise e
 
         return await self.repo.transaction_wrapper(_get_event_detail)
+
+    async def delete_event(self, event_id: UUID, ctx: AppContext) -> None:
+        async def _delete_event(session: AsyncSession) -> None:
+            try:
+                event = await self.repo.event_repo().get(
+                    session=session,
+                    query=EventQuery(id=event_id),
+                    ctx=ctx,
+                )
+                if event is None:
+                    logger.error(msg=f"Event with id {event_id} not found", context=ctx)
+                    raise BadRequestException(message="Event not found")
+
+                await self.repo.event_repo().delete(
+                    session=session, event_id=event_id, ctx=ctx
+                )
+                logger.info(msg=f"Event deleted successfully: {event_id}", context=ctx)
+                return None
+            except Exception as e:
+                logger.error(msg=f"Delete event service: Exception: {e}", context=ctx)
+                raise e
+
+        return await self.repo.transaction_wrapper(_delete_event)

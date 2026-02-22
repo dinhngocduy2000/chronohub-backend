@@ -43,3 +43,12 @@ class EventRouter:
             description="Create a new event with name, description, and members",
             response_description="The created event information",
         )
+
+        self.route.add_api_route(
+            path="/{id}",
+            endpoint=self.handler.delete_event,
+            methods=["DELETE"],
+            status_code=status.HTTP_204_NO_CONTENT,
+            summary="Delete an event",
+            description="Delete an event by id",
+        )
