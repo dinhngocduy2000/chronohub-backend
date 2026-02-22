@@ -1,7 +1,5 @@
-from typing import List
-from fastapi import APIRouter, status, Query, Path
+from fastapi import APIRouter
 from app.handler.user import UserHandler
-from app.common.schemas.user import UserCreate, UserInfo, UserLoginResponse
 
 
 class UserRouter:
