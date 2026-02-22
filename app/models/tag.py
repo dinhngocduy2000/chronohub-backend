@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List
 from sqlalchemy import DateTime, String, func
+from app.common.schemas.tags import TagInfo
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQL_UUID
@@ -31,3 +32,13 @@ class Tag(Base):
     events: Mapped[List["EventTag"]] = relationship(  # type: ignore
         "EventTag", back_populates="tag"
     )
+
+    def view(self) -> TagInfo:
+        return TagInfo(
+            id=self.id,
+            name=self.name,
+            color=self.color,
+            description=self.description,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
