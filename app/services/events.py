@@ -15,6 +15,7 @@ from app.common.schemas.events import (
     EventJoinOptions,
     EventListInfo,
     EventQuery,
+    EventUpdate,
     ListEventQuery,
 )
 from app.common.schemas.user import Credential
@@ -197,3 +198,26 @@ class EventService:
                 raise e
 
         return await self.repo.transaction_wrapper(_delete_event)
+
+    async def update_event(
+        self, event_id: UUID, input: EventUpdate, ctx: AppContext
+    ) -> None:
+        async def _update_event(session: AsyncSession) -> None:
+            try:
+                event = await self.repo.event_repo().get(
+                    session=session, query=EventQuery(id=event_id), ctx=ctx
+                )
+                if event is None:
+                    logger.error(msg=f"Event with id {event_id} not found", context=ctx)
+                    raise BadRequestException(message="Event not found")
+
+                await self.repo.event_repo().update(
+                    session=session, event_id=event_id, event_update=input, ctx=ctx
+                )
+                logger.info(msg=f"Event updated successfully: {event_id}", context=ctx)
+                return None
+            except Exception as e:
+                logger.error(msg=f"Update event service: Exception: {e}", context=ctx)
+                raise e
+
+        return await self.repo.transaction_wrapper(_update_event)

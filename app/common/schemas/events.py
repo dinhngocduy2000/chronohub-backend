@@ -27,6 +27,18 @@ class EventCreateDomain(EventCreate):
     id: Optional[UUID] = Field("", description="Event's id")
 
 
+class EventUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="Event's name")
+    destination: Optional[str] = Field(None, description="Event's destination")
+    cost: Optional[str] = Field(None, description="Event's cost")
+    start_time: Optional[datetime] = Field(None, description="Event's start time")
+    end_time: Optional[datetime] = Field(None, description="Event's end time")
+    priority: Optional[EventPriority] = Field(None, description="Event's priority")
+    category: Optional[EventCategory] = Field(None, description="Event's category")
+    description: Optional[str] = Field(None, description="Event's description")
+    tags: Optional[List[UUID]] = Field(default=None, description="Event's tags")
+
+
 class EventListInfo(BaseModel):
     id: UUID = Field(None, description="Event's id")
     name: str = Field(None, description="Event's name")
