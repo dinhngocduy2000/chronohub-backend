@@ -52,3 +52,13 @@ class EventRouter:
             summary="Delete an event",
             description="Delete an event by id",
         )
+
+        self.route.add_api_route(
+            path="/{id}",
+            endpoint=self.handler.update_event,
+            methods=["PUT"],
+            response_model=str,
+            status_code=status.HTTP_200_OK,
+            summary="Update an event",
+            description="Update an event by id",
+        )

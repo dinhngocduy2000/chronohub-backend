@@ -1,13 +1,14 @@
 from typing import List
 from uuid import UUID, uuid4
 
-from fastapi import Depends, Path, Query
+from fastapi import Body, Depends, Path, Query
 from app.common.context import AppContext
 from app.common.enum.context_actions import (
     CREATE_EVENT,
     DELETE_EVENT,
     GET_EVENT_DETAIL,
     LIST_CALENDAR_EVENTS,
+    UPDATE_EVENT,
 )
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
@@ -16,6 +17,7 @@ from app.common.schemas.events import (
     EventCreate,
     EventDetailInfo,
     EventQuery,
+    EventUpdate,
     ListEventQuery,
 )
 from app.common.schemas.user import Credential
@@ -66,3 +68,14 @@ class EventHandler:
     ) -> None:
         ctx = AppContext(trace_id=uuid4(), action=DELETE_EVENT, actor=credential.id)
         return await self.service.delete_event(event_id=id, ctx=ctx)
+
+    @exception_handler
+    async def update_event(
+        self,
+        id: UUID = Path(..., description="Event id"),
+        event_update: EventUpdate = Body(..., description="Event update"),
+        credential: Credential = Depends(AuthMiddleware.auth_middleware),
+    ) -> str:
+        ctx = AppContext(trace_id=uuid4(), action=UPDATE_EVENT, actor=credential.id)
+        await self.service.update_event(input=event_update, event_id=id, ctx=ctx)
+        return "Success"

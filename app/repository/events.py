@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
-from sqlalchemy import Select, delete, extract, select
+from sqlalchemy import Select, delete, extract, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from app.models.event import Event
@@ -13,6 +13,7 @@ from app.common.schemas.events import (
     EventJoinOptions,
     EventListInfo,
     EventQuery,
+    EventUpdate,
     ListEventQuery,
 )
 from app.models.event_tag import EventTag
@@ -153,4 +154,22 @@ class EventRepository:
             await session.commit()
         except Exception as e:
             logger.error(msg=f"Delete event repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def update(
+        self,
+        session: AsyncSession,
+        event_id: UUID,
+        event_update: EventUpdate,
+        ctx: AppContext,
+    ) -> None:
+        try:
+            update_data = event_update.model_dump(mode="python", exclude={"tags"})
+            stmt = update(Event).where(Event.id == event_id)
+            stmt = stmt.values(update_data)
+            await session.execute(stmt)
+            await session.commit()
+            return None
+        except Exception as e:
+            logger.error(msg=f"Update event repository: Exception: {e}", context=ctx)
             raise e
