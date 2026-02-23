@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from itertools import groupby
-from typing import List
+from typing import List, Set
 from uuid import UUID, uuid4
 
 from sqlalchemy import String
@@ -205,7 +205,11 @@ class EventService:
         async def _update_event(session: AsyncSession) -> None:
             try:
                 event = await self.repo.event_repo().get(
-                    session=session, query=EventQuery(id=event_id), ctx=ctx
+                    session=session,
+                    query=EventQuery(id=event_id),
+                    ctx=ctx,
+                    options=EventJoinOptions(include_tags=True),
+                    for_update=True,
                 )
                 if event is None:
                     logger.error(msg=f"Event with id {event_id} not found", context=ctx)
@@ -214,6 +218,29 @@ class EventService:
                 await self.repo.event_repo().update(
                     session=session, event_id=event_id, event_update=input, ctx=ctx
                 )
+
+                if input.tags is not None:
+                    existing_tag_ids: Set[UUID] = {et.tag_id for et in event.tags}
+                    input_tag_ids: Set[UUID] = set(input.tags)
+
+                    tags_to_create = input_tag_ids - existing_tag_ids
+                    tags_to_delete = existing_tag_ids - input_tag_ids
+
+                    if tags_to_delete:
+                        await self.repo.event_repo().remove_event_tags(
+                            session=session,
+                            event_id=event_id,
+                            tag_ids=list(tags_to_delete),
+                            ctx=ctx,
+                        )
+                    if tags_to_create:
+                        await self.repo.event_repo().add_event_tags(
+                            session=session,
+                            event_id=event_id,
+                            tag_ids=list(tags_to_create),
+                            ctx=ctx,
+                        )
+
                 logger.info(msg=f"Event updated successfully: {event_id}", context=ctx)
                 return None
             except Exception as e:
