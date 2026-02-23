@@ -151,7 +151,6 @@ class EventRepository:
         try:
             stmt = delete(Event).where(Event.id == event_id)
             await session.execute(stmt)
-            await session.commit()
         except Exception as e:
             logger.error(msg=f"Delete event repository: Exception: {e}", context=ctx)
             raise e
@@ -168,7 +167,6 @@ class EventRepository:
             stmt = update(Event).where(Event.id == event_id)
             stmt = stmt.values(update_data)
             await session.execute(stmt)
-            await session.commit()
             return None
         except Exception as e:
             logger.error(msg=f"Update event repository: Exception: {e}", context=ctx)

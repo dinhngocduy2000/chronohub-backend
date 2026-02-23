@@ -61,7 +61,6 @@ class UserRepository:
             )
         )
         await session.execute(stmt)
-        await session.commit()
 
     async def delete_user(self, session: AsyncSession, user_id: str) -> None:
         pass
