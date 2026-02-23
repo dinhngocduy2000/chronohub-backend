@@ -3,7 +3,7 @@ from typing import List, Optional
 from uuid import UUID, uuid4
 from sqlalchemy import Select, delete, extract, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from app.models.event import Event
 from app.common.context import AppContext
 from app.common.middleware.logger import Logger
@@ -66,11 +66,19 @@ class EventRepository:
         return stmt
 
     def _prepare_join(
-        self, stmt: Select, options: Optional[EventJoinOptions]
+        self,
+        stmt: Select,
+        options: Optional[EventJoinOptions],
+        for_update: bool = False,
     ) -> Select:
         if options is not None:
             if options.include_tags:
-                stmt = stmt.options(joinedload(Event.tags).joinedload(EventTag.tag))
+                if for_update:
+                    stmt = stmt.options(selectinload(Event.tags))
+                else:
+                    stmt = stmt.options(
+                        joinedload(Event.tags).joinedload(EventTag.tag)
+                    )
             if options.include_owner:
                 stmt = stmt.options(joinedload(Event.owner))
         return stmt
@@ -103,11 +111,14 @@ class EventRepository:
         query: EventQuery,
         ctx: AppContext,
         options: Optional[EventJoinOptions] = None,
+        for_update: Optional[bool] = False,
     ) -> Optional[Event]:
         try:
             stmt = select(Event)
             stmt = self._prepare_query(query=query, stmt=stmt, ctx=ctx)
-            stmt = self._prepare_join(stmt=stmt, options=options)
+            stmt = self._prepare_join(stmt=stmt, options=options, for_update=for_update)
+            if for_update:
+                stmt = stmt.with_for_update()
             result = await session.execute(stmt)
             event: Event = result.unique().scalars().first()
 
@@ -163,11 +174,47 @@ class EventRepository:
         ctx: AppContext,
     ) -> None:
         try:
-            update_data = event_update.model_dump(mode="python", exclude={"tags"})
-            stmt = update(Event).where(Event.id == event_id)
-            stmt = stmt.values(update_data)
-            await session.execute(stmt)
-            return None
+            update_data = event_update.model_dump(
+                mode="python", exclude={"tags"}, exclude_none=True
+            )
+            if update_data:
+                stmt = update(Event).where(Event.id == event_id)
+                stmt = stmt.values(update_data)
+                await session.execute(stmt)
         except Exception as e:
             logger.error(msg=f"Update event repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def add_event_tags(
+        self,
+        session: AsyncSession,
+        event_id: UUID,
+        tag_ids: List[UUID],
+        ctx: AppContext,
+    ) -> None:
+        try:
+            for tag_id in tag_ids:
+                session.add(EventTag(event_id=event_id, tag_id=tag_id))
+            await session.flush()
+        except Exception as e:
+            logger.error(msg=f"Add event tags repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def remove_event_tags(
+        self,
+        session: AsyncSession,
+        event_id: UUID,
+        tag_ids: List[UUID],
+        ctx: AppContext,
+    ) -> None:
+        try:
+            stmt = delete(EventTag).where(
+                EventTag.event_id == event_id,
+                EventTag.tag_id.in_(tag_ids),
+            )
+            await session.execute(stmt)
+        except Exception as e:
+            logger.error(
+                msg=f"Remove event tags repository: Exception: {e}", context=ctx
+            )
             raise e
