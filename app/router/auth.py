@@ -157,9 +157,21 @@ class AuthRouter:
                                 "created_at": "2026-01-25T10:30:00Z",
                                 "updated_at": "2026-01-25T10:30:00Z",
                                 "image_url": None,
+                                "active_group_id": "550e8400-e29b-41d4-a716-446655440000",
                             }
                         }
                     },
                 },
             },
+        )
+
+        self.router.add_api_route(
+            path="/switch",
+            endpoint=self.handler.switch_current_user_group,
+            methods=["PUT"],
+            response_model=str,
+            status_code=status.HTTP_200_OK,
+            summary="Switch current user group",
+            description="Switch current user group based on the group id",
+            response_description="The switched group information",
         )

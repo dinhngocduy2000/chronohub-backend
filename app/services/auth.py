@@ -4,9 +4,10 @@ from uuid import UUID
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
-from app.common.schemas.group import GroupCreateDomain
+from app.common.schemas.group import GroupCreateDomain, GroupQuery
 from app.common.schemas.user import (
     Credential,
+    SwitchGroupRequest,
     UserCreate,
     UserInfo,
     UserJoinOption,
@@ -299,3 +300,45 @@ class AuthService:
             )
 
         return await self.repo.transaction_wrapper(_get_current_user)
+
+    async def switch_current_user_group(
+        self, input: SwitchGroupRequest, ctx: AppContext
+    ) -> None:
+        async def _switch_current_user_group(session: AsyncSession) -> None:
+            try:
+                user, group = await asyncio.gather(
+                    self.repo.user_repo().get(
+                        session=session, query=UserQuery(id=ctx.actor), ctx=ctx
+                    ),
+                    self.repo.group_repo().get_group(
+                        session=session, query=GroupQuery(id=input.group_id), ctx=ctx
+                    ),
+                )
+                if user is None:
+                    logger.error(msg=f"User with id {ctx.actor} not found", context=ctx)
+                    raise BadRequestException(message="User not found")
+
+                if group is None:
+                    logger.error(
+                        msg=f"Group with id {input.group_id} not found", context=ctx
+                    )
+                    raise BadRequestException(message="Group not found")
+
+                if user.active_group_id == input.group_id:
+                    logger.info(
+                        msg=f"User already in group {input.group_id}", context=ctx
+                    )
+                    return
+
+                await self.repo.user_repo().update_user(
+                    session=session,
+                    user_id=ctx.actor,
+                    user_update=UserUpdate(active_group_id=input.group_id),
+                    ctx=ctx,
+                )
+                return
+            except Exception as e:
+                logger.error(msg=f"Switch group service: Exception: {e}", context=ctx)
+                raise e
+
+        return await self.repo.transaction_wrapper(_switch_current_user_group)
