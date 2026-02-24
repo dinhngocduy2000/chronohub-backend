@@ -6,6 +6,7 @@ from app.common.enum.context_actions import (
     GET_CURRENT_USER_PROFILE,
     REFRESH_TOKEN,
     REGISTER_USER,
+    SWITCH_CURRENT_USER_GROUP,
 )
 from app.common.exceptions import BadRequestException
 from app.common.exceptions.decorator import exception_handler
@@ -14,6 +15,7 @@ from app.common.middleware.logger import Logger
 from app.common.schemas.user import (
     Credential,
     RefreshTokenRequest,
+    SwitchGroupRequest,
     UserCreate,
     UserInfo,
     UserLogin,
@@ -139,3 +141,15 @@ class AuthHandler:
         )
         logger.info(msg=f"User info: {user_info}", context=ctx)
         return user_info
+
+    @exception_handler
+    async def switch_current_user_group(
+        self,
+        input: SwitchGroupRequest,
+        credential: Credential = Depends(AuthMiddleware.auth_middleware),
+    ) -> str:
+        ctx = AppContext(
+            trace_id=uuid4(), action=SWITCH_CURRENT_USER_GROUP, actor=credential.id
+        )
+        await self.service.switch_current_user_group(input, ctx=ctx)
+        return "Success"

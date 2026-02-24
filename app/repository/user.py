@@ -45,22 +45,23 @@ class UserRepository:
         pass
 
     async def update_user(
-        self, session: AsyncSession, user_id: UUID, user_update: UserUpdate
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        user_update: UserUpdate,
+        ctx: AppContext,
     ) -> None:
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(
-                name=user_update.name,
-                email=user_update.email,
-                password=user_update.password,
-                image_url=user_update.image_url,
-                status=user_update.status,
-                active_group_id=user_update.active_group_id,
-                updated_at=func.now(),
-            )
-        )
-        await session.execute(stmt)
+        try:
+            user_update_data = user_update.model_dump(mode="python", exclude_none=True)
+            if user_update_data is not None:
+                stmt = update(User).where(User.id == user_id)
+                stmt = stmt.values(user_update_data)
+            await session.execute(stmt)
+            await session.flush()
+        except Exception as e:
+            logger.error(msg=f"Update user repository: Exception: {e}", context=ctx)
+            raise e
+        return
 
     async def delete_user(self, session: AsyncSession, user_id: str) -> None:
         pass

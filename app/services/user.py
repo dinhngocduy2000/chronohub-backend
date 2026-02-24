@@ -5,6 +5,7 @@ from sqlalchemy import UUID
 from app.common.context import AppContext
 from app.common.middleware.logger import Logger
 from app.common.schemas.user import (
+    SwitchGroupRequest,
     UserCreate,
     UserInfo,
     UserLogin,

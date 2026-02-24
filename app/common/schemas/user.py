@@ -133,4 +133,8 @@ class UserLogin(BaseModel):
         return password
 
 
+class SwitchGroupRequest(BaseModel):
+    group_id: UUID = Field(None, description="Group's id")
+
+
 GroupInfo.model_rebuild(_types_namespace={"UserInfo": UserInfo})
