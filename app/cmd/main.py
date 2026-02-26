@@ -11,9 +11,12 @@ from app.handler.event import EventHandler
 from app.handler.group import GroupHandler
 from app.handler.user import UserHandler
 from app.repository.registry import Registry
+from app.external.mail.mail import MailService
+from app.handler.mail import MailHandler
 from app.router.auth import AuthRouter
 from app.router.event import EventRouter
 from app.router.group import GroupRouter
+from app.router.mail import MailRouter
 from app.router.user import UserRouter
 from app.services.auth import AuthService
 from app.services.events import EventService
@@ -35,6 +38,8 @@ class App:
                 repo=registry, group_service=group_service, user_service=user_service
             )
             event_service = EventService(repo=registry)
+            # ------------ External Service ------------
+            mail_service = MailService()
 
             AuthMiddleware.init(auth_service=auth_service)
             # ------------ Handler ------------
@@ -42,11 +47,13 @@ class App:
             auth_handler = AuthHandler(service=auth_service)
             group_handler = GroupHandler(service=group_service)
             event_handler = EventHandler(service=event_service)
+            mail_handler = MailHandler(service=mail_service)
             # ------------ Router ------------
             user_router = UserRouter(handler=user_handler)
             auth_router = AuthRouter(handler=auth_handler)
             group_router = GroupRouter(handler=group_handler)
             event_router = EventRouter(handler=event_handler)
+            mail_router = MailRouter(handler=mail_handler)
             self.application.include_router(
                 user_router.router,
                 prefix=settings.API_V1_PREFIX + "/users",
@@ -66,6 +73,11 @@ class App:
                 event_router.route,
                 prefix=settings.API_V1_PREFIX + "/events",
                 tags=["Events"],
+            )
+            self.application.include_router(
+                mail_router.router,
+                prefix=settings.API_V1_PREFIX + "/mail",
+                tags=["Mail"],
             )
 
         return start_app
