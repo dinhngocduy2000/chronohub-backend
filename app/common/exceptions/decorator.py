@@ -2,7 +2,11 @@ from functools import wraps
 
 from pydantic import ValidationError
 
-from app.common.exceptions import BadRequestException, ExceptionInternalError
+from app.common.exceptions import (
+    BadRequestException,
+    ExceptionInternalError,
+    UnauthorizedException,
+)
 from app.common.middleware.logger import Logger
 
 logger = Logger()
@@ -14,6 +18,9 @@ def exception_handler(func):
         try:
             return await func(*args, **kwargs)
         except BadRequestException as e:
+            logger.error(f"HTTP exception: {e}")
+            raise e
+        except UnauthorizedException as e:
             logger.error(f"HTTP exception: {e}")
             raise e
         except ValidationError as e:

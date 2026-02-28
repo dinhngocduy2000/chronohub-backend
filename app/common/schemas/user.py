@@ -56,6 +56,7 @@ class Credential(BaseModel):
     email: str
     # role: Role
     is_pending: Optional[bool] = None
+    exp_time: Optional[datetime] = None
 
 
 class UserUpdate(BaseModel):
@@ -70,6 +71,12 @@ class UserUpdate(BaseModel):
 class UserJoinOption(BaseModel):
     included_owned_groups: Optional[bool] = Field(
         None, description="Whether to include groups in the response"
+    )
+
+
+class RefreshTokenRequest(BaseModel):
+    is_save_session: Optional[bool] = Field(
+        True, description="Whether to save the session"
     )
 
 
@@ -116,6 +123,9 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str = Field("", description="User's email")
     password: str = Field("", description="User's password")
+    is_save_session: Optional[bool] = Field(
+        True, description="Whether to save the session"
+    )
 
     @field_validator("email")
     def validate_email(cls, email: str) -> str:

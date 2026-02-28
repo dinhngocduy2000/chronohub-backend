@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 from uuid import uuid4
 from fastapi import Depends, Request, Response
 from app.common.context import AppContext
@@ -7,8 +9,9 @@ from app.common.enum.context_actions import (
     REFRESH_TOKEN,
     REGISTER_USER,
     SWITCH_CURRENT_USER_GROUP,
+    TRACK_SESSION,
 )
-from app.common.exceptions import BadRequestException
+from app.common.exceptions import BadRequestException, UnauthorizedException
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.common.middleware.logger import Logger
@@ -34,26 +37,33 @@ class AuthHandler:
         self.service = service
 
     def _set_cookies_tokens(
-        self, response: Response, login_response: UserLoginResponse
+        self,
+        response: Response,
+        login_response: UserLoginResponse,
+        is_save_session: Optional[bool] = True,
     ) -> None:
         response.set_cookie(
             key="access_token",
             value=login_response.access_token,
             httponly=True,
             secure=True,
-            max_age=login_response.expires_in,
+            max_age=login_response.expires_in if is_save_session else None,
         )
         response.set_cookie(
             key="refresh_token",
             value=login_response.refresh_token,
             httponly=True,
             secure=True,
-            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+            max_age=(
+                settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+                if is_save_session
+                else None
+            ),
         )
 
     @exception_handler
     async def authenticate_user(
-        self, login_request: UserLogin, response: Response, request: Request
+        self, login_request: UserLogin, response: Response
     ) -> str:
         """
         Login a user
@@ -68,7 +78,11 @@ class AuthHandler:
 
         login_response = await self.service.login_user(login_request, ctx=ctx)
 
-        self._set_cookies_tokens(response=response, login_response=login_response)
+        self._set_cookies_tokens(
+            response=response,
+            login_response=login_response,
+            is_save_session=login_request.is_save_session,
+        )
         logger.info(msg=f"User logged in successfully", context=ctx)
         return "Success"
 
@@ -94,6 +108,7 @@ class AuthHandler:
         self,
         request: Request,
         response: Response,
+        refresh_token_request: RefreshTokenRequest,
     ) -> str:
         """
         Refresh a token
@@ -107,9 +122,11 @@ class AuthHandler:
         ctx = AppContext(trace_id=uuid4(), action=REFRESH_TOKEN)
         logger.info(msg=f"Getting refresh token from cookies...", context=ctx)
         refresh_token = request.cookies.get("refresh_token")
+        access_token = request.cookies.get("access_token")
+        logger.info(msg=f"Access token: {access_token}", context=ctx)
         if refresh_token is None:
             logger.error(msg=f"Refresh token not found in cookies...", context=ctx)
-            raise BadRequestException("Refresh token is required")
+            raise BadRequestException("Refresh  token is required")
         logger.info(msg=f"Refresh token found, refreshing token...", context=ctx)
         login_response = await self.service.refresh_token(
             refresh_token=refresh_token, ctx=ctx
@@ -117,7 +134,11 @@ class AuthHandler:
         logger.info(
             msg=f"Token refreshed successfully, setting cookies...", context=ctx
         )
-        self._set_cookies_tokens(response=response, login_response=login_response)
+        self._set_cookies_tokens(
+            response=response,
+            login_response=login_response,
+            is_save_session=refresh_token_request.is_save_session,
+        )
         return "Success"
 
     @exception_handler
@@ -153,3 +174,19 @@ class AuthHandler:
         )
         await self.service.switch_current_user_group(input, ctx=ctx)
         return "Success"
+
+    @exception_handler
+    async def track_session(
+        self, credential: Credential = Depends(AuthMiddleware.auth_middleware)
+    ) -> str:
+        ctx = AppContext(trace_id=uuid4(), action=TRACK_SESSION, actor=credential.id)
+        minutes_until_expiry = (
+            credential.exp_time - datetime.now(timezone.utc)
+        ).total_seconds() / 60
+        logger.info(msg=f"current time: {datetime.now(timezone.utc)}", context=ctx)
+        logger.info(msg=f"exp time: {credential.exp_time}", context=ctx)
+        logger.info(msg=f"Minutes until expiry: {minutes_until_expiry}", context=ctx)
+        if minutes_until_expiry < 15:
+            raise UnauthorizedException("Session expired")
+
+        return "Session is still valid"

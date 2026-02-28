@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import uuid
 from fastapi import HTTPException, Request, status
 import jwt
@@ -59,6 +59,7 @@ class AuthMiddleware:
             id=user_info.id,
             email=user_info.email,
             is_pending=user_info.status == UserStatus.PENDING,
+            exp_time=exp_time,
         )
 
         logger.info(msg=f"Credential authorized", context=ctx)
