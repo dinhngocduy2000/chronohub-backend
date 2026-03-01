@@ -186,3 +186,14 @@ class AuthRouter:
             description="Track session based on the credential",
             response_description="The tracked session information",
         )
+
+        self.router.add_api_route(
+            path="/logout",
+            endpoint=self.handler.logout,
+            methods=["POST"],
+            response_model=str,
+            status_code=status.HTTP_200_OK,
+            summary="Logout a user",
+            description="Logout a user",
+            response_description="The logged out user information",
+        )

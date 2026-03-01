@@ -1,6 +1,8 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+
+from fastapi import Response
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
@@ -342,3 +344,12 @@ class AuthService:
                 raise e
 
         return await self.repo.transaction_wrapper(_switch_current_user_group)
+
+    async def logout(self, ctx: AppContext, response: Response) -> None:
+        try:
+            response.delete_cookie("access_token")
+            response.delete_cookie("refresh_token")
+            return
+        except Exception as e:
+            logger.error(msg=f"Logout service: Exception: {e}", context=ctx)
+            raise e
