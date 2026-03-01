@@ -6,6 +6,7 @@ from app.common.context import AppContext
 from app.common.enum.context_actions import (
     AUTHENTICATE_USER,
     GET_CURRENT_USER_PROFILE,
+    LOGOUT,
     REFRESH_TOKEN,
     REGISTER_USER,
     SWITCH_CURRENT_USER_GROUP,
@@ -46,14 +47,16 @@ class AuthHandler:
             key="access_token",
             value=login_response.access_token,
             httponly=True,
-            secure=True,
+            secure=True,  # critical on http
+            samesite="lax",
             max_age=login_response.expires_in if is_save_session else None,
         )
         response.set_cookie(
             key="refresh_token",
             value=login_response.refresh_token,
             httponly=True,
-            secure=True,
+            secure=True,  # critical on http
+            samesite="lax",
             max_age=(
                 settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
                 if is_save_session
@@ -190,3 +193,8 @@ class AuthHandler:
             raise UnauthorizedException("Session expired")
 
         return "Session is still valid"
+
+    async def logout(self, response: Response) -> str:
+        ctx = AppContext(trace_id=uuid4(), action=LOGOUT)
+        await self.service.logout(ctx=ctx, response=response)
+        return "Success"
