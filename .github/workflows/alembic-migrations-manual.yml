@@ -65,6 +65,7 @@ jobs:
       - name: Alembic upgrade (dry-run or real)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
           source .venv/bin/activate
 
@@ -80,6 +81,7 @@ jobs:
         if: always()
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
         run: |
           source .venv/bin/activate
           alembic current || echo "Final state could not be determined"
