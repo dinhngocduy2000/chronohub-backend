@@ -1,7 +1,11 @@
 import asyncio
+import secrets
+import urllib.parse
 from datetime import datetime, timedelta, timezone
+from typing import Tuple
 from uuid import UUID
 
+import httpx
 from fastapi import Response
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
@@ -25,6 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import bcrypt
 from app.core.config import settings
 import jwt
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 from app.services.group import GroupService
 from app.services.user import UserService
@@ -217,6 +223,166 @@ class AuthService:
                 raise e
 
         return await self.repo.transaction_wrapper(_login_user)
+
+    def get_google_auth_url(self, ctx: AppContext) -> Tuple[str, str]:
+        """
+        Build the Google OAuth 2.0 authorization URL for redirect-based sign-in.
+        Returns (url, state). The handler should set state in a cookie and return the URL to the frontend.
+        """
+        if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_REDIRECT_URI:
+            logger.error(
+                msg="Google OAuth URL is not configured (GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI)",
+                context=ctx,
+            )
+            raise BadRequestException(message="Google Sign-In is not configured")
+        state = secrets.token_urlsafe(32)
+        params = {
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": state,
+            "access_type": "offline",
+            "prompt": "consent",
+        }
+        url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(
+            params
+        )
+        return url, state
+
+    async def _login_response_from_google_idinfo(
+        self, idinfo: dict, ctx: AppContext
+    ) -> UserLoginResponse:
+        """Get or create user from Google id_token payload and return our JWT login response."""
+        email = idinfo.get("email")
+        if not email or not idinfo.get("email_verified"):
+            raise BadRequestException(message="Google account email is not verified")
+        name = idinfo.get("name") or email.split("@")[0]
+        picture = idinfo.get("picture")
+
+        async def _run(session: AsyncSession) -> UserLoginResponse:
+            user = await self.repo.user_repo().get(
+                session=session,
+                query=UserQuery(email=email),
+                ctx=ctx,
+            )
+            if user is None:
+                logger.info(
+                    msg=f"Creating new user for Google sign-in: {email}",
+                    context=ctx,
+                )
+                new_user = User(
+                    name=name,
+                    email=email,
+                    password=None,
+                    image_url=picture,
+                )
+                await self.repo.user_repo().create_user(
+                    session=session,
+                    user_info=new_user,
+                )
+                await session.refresh(new_user)
+                user = new_user
+
+            login_response = self._generate_tokens(user)
+            if user.status == UserStatus.PENDING:
+                logger.info(
+                    msg="First-time Google login: creating default group...",
+                    context=ctx,
+                )
+                new_group = await self.group_service.create_group(
+                    group_create=GroupCreateDomain(
+                        name=f"{user.name}'s Group",
+                        description=f"Group created for {user.name} by default",
+                    ),
+                    credential=Credential(
+                        id=user.id,
+                        email=user.email,
+                        is_pending=False,
+                    ),
+                    ctx=ctx,
+                )
+                user_update = UserUpdate(
+                    name=user.name,
+                    email=user.email,
+                    password=user.password,
+                    image_url=user.image_url,
+                    status=UserStatus.ACTIVE,
+                    active_group_id=new_group.id,
+                )
+                asyncio.create_task(
+                    self.user_service.update_user(
+                        user_update=user_update,
+                        user_id=user.id,
+                        ctx=ctx,
+                    ),
+                )
+            return login_response
+
+        return await self.repo.transaction_wrapper(_run)
+
+    async def login_with_google_callback(
+        self, code: str, state: str, state_cookie: str | None, ctx: AppContext
+    ) -> UserLoginResponse:
+        """
+        Exchange Google authorization code for tokens, then get or create user and return our JWTs.
+        Validates state against the cookie set when the auth URL was requested.
+        """
+        if not all(
+            [
+                settings.GOOGLE_CLIENT_ID,
+                settings.GOOGLE_CLIENT_SECRET,
+                settings.GOOGLE_REDIRECT_URI,
+            ]
+        ):
+            logger.error(
+                msg="Google callback is not configured",
+                context=ctx,
+            )
+            raise BadRequestException(message="Google Sign-In is not configured")
+        if not state or state != state_cookie:
+            logger.error(msg="Invalid or missing state in Google callback", context=ctx)
+            raise BadRequestException(message="Invalid state")
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": settings.GOOGLE_CLIENT_ID,
+                    "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                    "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+                    "grant_type": "authorization_code",
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+        if resp.status_code != 200:
+            logger.error(
+                msg=f"Google token exchange failed: {resp.status_code} {resp.text}",
+                context=ctx,
+            )
+            raise BadRequestException(message="Google sign-in failed")
+
+        data = resp.json()
+        id_token_str = data.get("id_token")
+        if not id_token_str:
+            logger.error(msg="Google response missing id_token", context=ctx)
+            raise BadRequestException(message="Google sign-in failed")
+
+        try:
+            idinfo = google_id_token.verify_oauth2_token(
+                id_token_str,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+            )
+        except ValueError as e:
+            logger.error(
+                msg=f"Invalid Google ID token from callback: {e}",
+                context=ctx,
+            )
+            raise BadRequestException(message="Invalid Google credential")
+
+        return await self._login_response_from_google_idinfo(idinfo, ctx)
 
     async def refresh_token(
         self, refresh_token: str, ctx: AppContext

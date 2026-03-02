@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
-from fastapi import Depends, Request, Response
+from fastapi import Depends, Query, Request, Response
+from fastapi.responses import RedirectResponse
 from app.common.context import AppContext
 from app.common.enum.context_actions import (
     AUTHENTICATE_USER,
     GET_CURRENT_USER_PROFILE,
+    GOOGLE_AUTHENTICATE,
     LOGOUT,
     REFRESH_TOKEN,
     REGISTER_USER,
@@ -18,6 +20,9 @@ from app.common.middleware.auth_middleware import AuthMiddleware
 from app.common.middleware.logger import Logger
 from app.common.schemas.user import (
     Credential,
+    GoogleAuthUrlResponse,
+    GoogleLoginRequest,
+    GoogleLoginResponse,
     RefreshTokenRequest,
     SwitchGroupRequest,
     UserCreate,
@@ -88,6 +93,62 @@ class AuthHandler:
         )
         logger.info(msg=f"User logged in successfully", context=ctx)
         return "Success"
+
+    @exception_handler
+    async def get_google_auth_url(
+        self,
+        response: Response,
+    ) -> GoogleLoginResponse:
+        """
+        Return the Google OAuth authorization URL. Frontend should redirect the user to this URL.
+        The backend sets a state cookie; after Google redirects back to the callback, state is validated.
+        """
+        ctx = AppContext(trace_id=uuid4(), action=GOOGLE_AUTHENTICATE)
+        url, state = self.service.get_google_auth_url(ctx=ctx)
+        response.set_cookie(
+            key="google_oauth_state",
+            value=state,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=600,
+        )
+        return GoogleLoginResponse(
+            data=GoogleAuthUrlResponse(url=url),
+            message="Success",
+            statusCode=200,
+        )
+
+    @exception_handler
+    async def google_callback(
+        self,
+        request: Request,
+        code: str = Query(..., description="Authorization code from Google"),
+        state: str = Query(..., description="State string for CSRF check"),
+    ) -> RedirectResponse:
+        """
+        Google OAuth callback. Exchanges the code for tokens, creates session, redirects to frontend.
+        """
+        ctx = AppContext(trace_id=uuid4(), action=GOOGLE_AUTHENTICATE)
+        state_cookie = request.cookies.get("google_oauth_state")
+        login_response = await self.service.login_with_google_callback(
+            code=code,
+            state=state,
+            state_cookie=state_cookie,
+            ctx=ctx,
+        )
+        redirect_url = settings.GOOGLE_FRONTEND_REDIRECT_URI or "http://localhost:3000"
+        redir = RedirectResponse(url=redirect_url, status_code=302)
+        redir.delete_cookie("google_oauth_state")
+        self._set_cookies_tokens(
+            response=redir,
+            login_response=login_response,
+            is_save_session=True,
+        )
+        logger.info(
+            msg="User logged in with Google (callback) successfully", context=ctx
+        )
+        return redir
 
     @exception_handler
     async def register_user(self, user_create: UserCreate) -> UserInfo:
