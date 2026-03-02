@@ -5,6 +5,7 @@ help:
 	@echo "  make install           - Install dependencies"
 	@echo "  make install-dev       - Install dev dependencies"
 	@echo "  make dev               - Run development server"
+	@echo "  make dev-test          - Run server with .env.test"
 	@echo "  make docker-up         - Start Docker containers"
 	@echo "  make docker-down       - Stop Docker containers"
 	@echo "  make migrate           - Run database migrations"
@@ -29,6 +30,9 @@ install-dev:
 
 dev:
 	uvicorn app.cmd.main:app --reload --host 0.0.0.0 --port 8000
+
+dev-test:
+	ENV_FILE=.env.test uvicorn app.cmd.main:app --reload --host 0.0.0.0 --port 8000
 
 docker-up:
 	docker-compose up -d
