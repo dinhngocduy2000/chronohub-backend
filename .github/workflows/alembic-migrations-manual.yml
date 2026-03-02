@@ -53,9 +53,7 @@ jobs:
           source .venv/bin/activate
           uv pip install --upgrade pip
           uv pip install alembic sqlalchemy psycopg[binary] python-dotenv
-          # If you have a requirements.txt or pyproject.toml:
-          # uv pip install -r requirements.txt
-          # or: uv sync
+          uv pip install -r requirements.txt
 
       - name: Show current migration state
         env:
