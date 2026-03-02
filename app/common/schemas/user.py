@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.common.enum.user_status import UserStatus
 from app.common.exceptions import BadRequestException
+from app.common.schemas.common import BaseResponse
 from app.common.schemas.group import GroupInfo
 
 
@@ -141,6 +142,25 @@ class UserLogin(BaseModel):
             raise BadRequestException("Password is required")
 
         return password
+
+
+class GoogleLoginRequest(BaseModel):
+    """Request body for Google Sign-In. Send the ID token from Google's OAuth response."""
+
+    id_token: str = Field(..., description="Google ID token from the client OAuth flow")
+    is_save_session: Optional[bool] = Field(
+        True, description="Whether to persist session in a long-lived cookie"
+    )
+
+
+class GoogleAuthUrlResponse(BaseModel):
+    """Response containing the Google OAuth URL for redirect-based sign-in."""
+
+    url: str = Field(..., description="URL to redirect the user to for Google sign-in")
+
+
+class GoogleLoginResponse(BaseResponse[GoogleAuthUrlResponse]):
+    pass
 
 
 class SwitchGroupRequest(BaseModel):

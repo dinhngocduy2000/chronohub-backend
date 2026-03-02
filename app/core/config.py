@@ -46,6 +46,14 @@ class Settings(BaseAppSettings):
     SMTP_FROM_EMAIL: str = ""
     SMTP_USE_TLS: bool = True
 
+    # Google OAuth (for Sign in with Google)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    # Backend callback URL (must match Google Cloud Console). e.g. http://localhost:8080/api/v1/auth/google/callback
+    GOOGLE_REDIRECT_URI: str = ""
+    # Where to redirect the browser after successful Google login. e.g. http://localhost:3000
+    GOOGLE_FRONTEND_REDIRECT_URI: str = ""
+
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
