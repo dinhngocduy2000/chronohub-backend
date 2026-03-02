@@ -52,7 +52,7 @@ jobs:
           uv venv --python 3.12
           source .venv/bin/activate
           uv pip install --upgrade pip
-          uv pip install alembic sqlalchemy psycopg[binary] psycopg2-binary python-dotenv
+          uv pip install alembic sqlalchemy[asyncio] asyncpg python-dotenv
           uv pip install -r requirements.txt
 
       - name: Show current migration state
