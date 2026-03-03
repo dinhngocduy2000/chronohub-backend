@@ -30,7 +30,7 @@ jobs:
     # Soft protection: only your GitHub username can actually run the migration
     # Replace 'ngocduy-git' with your ACTUAL GitHub username (case-sensitive!)
     # You can check your username in previous workflow runs or your profile URL
-    if: github.actor == 'dinhngocduy2000'   # ← CHANGE THIS TO YOUR REAL USERNAME
+    if: github.actor == 'dinhngocduy2000' && github.ref == 'refs/heads/main'   # ← CHANGE THIS TO YOUR REAL USERNAME
 
     runs-on: ubuntu-latest
 
@@ -42,7 +42,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: Install uv (fast & modern dependency manager)
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -52,12 +51,13 @@ jobs:
           uv venv --python 3.12
           source .venv/bin/activate
           uv pip install --upgrade pip
-          uv pip install alembic sqlalchemy psycopg[binary] python-dotenv
+          uv pip install alembic sqlalchemy[asyncio] asyncpg python-dotenv
           uv pip install -r requirements.txt
 
       - name: Show current migration state
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
           ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
         run: |
           source .venv/bin/activate
