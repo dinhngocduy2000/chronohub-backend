@@ -30,7 +30,7 @@ jobs:
     # Soft protection: only your GitHub username can actually run the migration
     # Replace 'ngocduy-git' with your ACTUAL GitHub username (case-sensitive!)
     # You can check your username in previous workflow runs or your profile URL
-    if: github.actor == 'dinhngocduy2000'   # ← CHANGE THIS TO YOUR REAL USERNAME
+    if: github.actor == 'dinhngocduy2000' && github.ref == 'refs/heads/main'   # ← CHANGE THIS TO YOUR REAL USERNAME
 
     runs-on: ubuntu-latest
 
