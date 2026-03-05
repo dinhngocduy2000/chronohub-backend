@@ -1,3 +1,8 @@
+# ─── Load .env if it exists ─────────────────────────────────────
+ifneq (,$(wildcard ./.env))
+    include .env
+    export               # ← exports ALL variables loaded by include
+endif
 .PHONY: help install install-dev dev docker-up docker-down migrate migration migration-status migration-history test test-unit test-integration test-cov test-watch lint format clean
 
 help:
@@ -20,6 +25,9 @@ help:
 	@echo "  make lint              - Run linting"
 	@echo "  make format            - Format code"
 	@echo "  make clean             - Clean up cache files"
+	@echo "  make build-image       - Build Docker image"
+	@echo "  make tag-image         - Tag Docker image"
+	@echo "  make push-image        - Push Docker image to ECR"
 
 install:
 	pip install -r requirements.txt
@@ -94,3 +102,11 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".coverage" -exec rm -rf {} + 2>/dev/null || true
 
+build-image:
+	docker build -t chronohub-backend:latest .
+
+tag-image: 
+	docker tag chronohub-backend:latest $(AWS_ECR_URL):latest
+
+push-image: 
+	docker push $(AWS_ECR_URL):latest
