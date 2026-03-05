@@ -1,25 +1,25 @@
-FROM python:3.11-slim
+# ───────────────────────────────────────────────────────────────
+# AWS Lambda + FastAPI (container image) – optimized 2026 style
+# Base: official AWS Python 3.12 image (arm64/Graviton → cheaper)
+# ───────────────────────────────────────────────────────────────
 
-WORKDIR /app
+FROM public.ecr.aws/lambda/python:3.12
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+# ── Lambda expects your code & deps in this directory ──
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copy requirements first for better caching
+# ── Copy & install production dependencies first (best layer caching) ──
 COPY requirements.txt .
+RUN pip install --no-cache-dir --target "${LAMBDA_TASK_ROOT}" -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# ── Copy the entire app/ folder
+#    → ends up as ${LAMBDA_TASK_ROOT}/app/
+COPY app/ ./app/
 
-# Copy application code
-COPY . .
+# ── Optional: reduce image size (remove caches & compiled files)
+RUN find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find . -type f -name "*.pyc"       -delete             || true
 
-# Expose port
-EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "app.cmd.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["app.cmd.main.lambda_handler"]
 
