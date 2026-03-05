@@ -1,6 +1,7 @@
 from typing import Callable
 from fastapi import FastAPI
 from loguru import logger
+from mangum import Mangum
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
@@ -103,3 +104,4 @@ class App:
 
 
 app = App().application
+lambda_handler = Mangum(app)
