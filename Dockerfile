@@ -1,25 +1,26 @@
-# ───────────────────────────────────────────────────────────────
-# AWS Lambda + FastAPI (container image) – optimized 2026 style
-# Base: official AWS Python 3.12 image (arm64/Graviton → cheaper)
-# ───────────────────────────────────────────────────────────────
+# Stage 1: Builder — lightweight image just for installing deps
+FROM python:3.12-slim-bookworm AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-FROM public.ecr.aws/lambda/python:3.12
+WORKDIR /build
 
-# ── Lambda expects your code & deps in this directory ──
-WORKDIR ${LAMBDA_TASK_ROOT}
-
-# ── Copy & install production dependencies first (best layer caching) ──
 COPY requirements.txt .
-RUN pip install --no-cache-dir --target "${LAMBDA_TASK_ROOT}" -r requirements.txt
 
-# ── Copy the entire app/ folder
-#    → ends up as ${LAMBDA_TASK_ROOT}/app/
-COPY app/ ./app/
+RUN uv pip install --no-cache -r requirements.txt --target /deps && \
+    find /deps -type d -name "__pycache__" -exec rm -rf {} + && \
+    find /deps -type d -name "*.dist-info" -exec rm -rf {} + && \
+    find /deps -type d -name "tests" -exec rm -rf {} + && \
+    find /deps -type d -name "test" -exec rm -rf {} + && \
+    find /deps -type f -name "*.pyc" -delete && \
+    find /deps -type f -name "*.pyo" -delete && \
+    find /deps -type f -name "*.c" -delete && \
+    find /deps -type f -name "*.h" -delete && \
+    find /deps -type f -name "py.typed" -delete
 
-# ── Optional: reduce image size (remove caches & compiled files)
-RUN find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
-    find . -type f -name "*.pyc"       -delete             || true
+# Stage 2: Final Lambda image
+FROM public.ecr.aws/lambda/python:3.12-arm64
 
+COPY --from=builder /deps ${LAMBDA_TASK_ROOT}
+COPY app/ ${LAMBDA_TASK_ROOT}/app/
 
-CMD ["app.cmd.main.lambda_handler"]
-
+CMD ["app.main.lambda_handler"]

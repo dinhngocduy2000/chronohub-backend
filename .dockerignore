@@ -1,31 +1,85 @@
-__pycache__
-*.pyc
-*.pyo
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 *.pyd
 .Python
-*.so
 *.egg
-*.egg-info
-dist
-build
-.git
-.gitignore
-.env
-.venv
+*.egg-info/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments & dependencies
+.venv/
 venv/
 env/
 ENV/
-.vscode
-.idea
+.python-version
+
+# Build & distribution
+dist/
+build/
+*.egg-info/
+*.whl
+*.tar.gz
+
+# Testing
+tests/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+tox/
+.nox/
+.mypy_cache/
+
+# IDE / editor
+.vscode/
+.idea/
 *.swp
 *.swo
 *~
+
+# OS generated files
 .DS_Store
 Thumbs.db
-.pytest_cache
-.coverage
-htmlcov/
+ehthumbs.db
+desktop.ini
+
+# Logs & temporary
 *.log
 logs/
-README.md
+tmp/
+temp/
 
+# Local AWS / SAM / CDK files
+.aws/
+.aws-sam/
+samconfig.toml
+template.yaml
+template.yml
+cdk.out/
+
+# Jupyter & notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# Large data / models (adjust patterns to your project)
+data/
+models/
+*.h5
+*.pth
+*.pt
+*.onnx
+*.pickle
+*.pkl
+
+# Misc
+.git
+.gitignore
+.env*
+README.md
+LICENSE
+Dockerfile*   # optional: ignore backups like Dockerfile.bak
+docker-compose*
