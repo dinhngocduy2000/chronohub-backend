@@ -7,5 +7,5 @@ class UserRouter:
     handler: UserHandler
 
     def __init__(self, handler: UserHandler) -> None:
-        self.router = APIRouter(prefix="", tags=["Users"])
+        self.router = APIRouter(prefix="", tags=["Users"], redirect_slashes=False)
         self.handler = handler

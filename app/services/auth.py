@@ -3,7 +3,7 @@ import secrets
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import Response
@@ -55,6 +55,7 @@ class AuthService:
     def _generate_tokens(self, user: User) -> UserLoginResponse:
         current_time = datetime.now(timezone.utc)
         jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
+        logger.info(msg=f"Algorithm: {settings.ALGORITHM}")
 
         # access token
         jwt_payload["type"] = "access"
@@ -71,6 +72,7 @@ class AuthService:
         jwt_payload["exp"] = current_time + timedelta(
             days=settings.REFRESH_TOKEN_EXPIRE_DAYS
         )
+
         refresh_token = jwt.encode(
             jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
         )
@@ -255,17 +257,21 @@ class AuthService:
     ) -> UserLoginResponse:
         """Get or create user from Google id_token payload and return our JWT login response."""
         email = idinfo.get("email")
+        logger.info(msg=f"Checking google email account: {email}")
         if not email or not idinfo.get("email_verified"):
+            logger.error(msg=f"Google account email is not verified", context=ctx)
             raise BadRequestException(message="Google account email is not verified")
         name = idinfo.get("name") or email.split("@")[0]
         picture = idinfo.get("picture")
 
         async def _run(session: AsyncSession) -> UserLoginResponse:
+            logger.info(msg=f"Checking user by email: {email}")
             user = await self.repo.user_repo().get(
                 session=session,
                 query=UserQuery(email=email),
                 ctx=ctx,
             )
+            logger.info(msg=f"User found: {user}")
             if user is None:
                 logger.info(
                     msg=f"Creating new user for Google sign-in: {email}",
@@ -285,38 +291,6 @@ class AuthService:
                 user = new_user
 
             login_response = self._generate_tokens(user)
-            if user.status == UserStatus.PENDING:
-                logger.info(
-                    msg="First-time Google login: creating default group...",
-                    context=ctx,
-                )
-                new_group = await self.group_service.create_group(
-                    group_create=GroupCreateDomain(
-                        name=f"{user.name}'s Group",
-                        description=f"Group created for {user.name} by default",
-                    ),
-                    credential=Credential(
-                        id=user.id,
-                        email=user.email,
-                        is_pending=False,
-                    ),
-                    ctx=ctx,
-                )
-                user_update = UserUpdate(
-                    name=user.name,
-                    email=user.email,
-                    password=user.password,
-                    image_url=user.image_url,
-                    status=UserStatus.ACTIVE,
-                    active_group_id=new_group.id,
-                )
-                asyncio.create_task(
-                    self.user_service.update_user(
-                        user_update=user_update,
-                        user_id=user.id,
-                        ctx=ctx,
-                    ),
-                )
             return login_response
 
         return await self.repo.transaction_wrapper(_run)

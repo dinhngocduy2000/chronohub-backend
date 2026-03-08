@@ -35,7 +35,7 @@ class Settings(BaseAppSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     SECRET_KEY: str
-    ALGORITHM: str = "HS256"
+    ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     # SMTP / Email
