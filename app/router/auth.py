@@ -46,7 +46,7 @@ class AuthRouter:
         )
 
         self.router.add_api_route(
-            path="/google/",
+            path="/google",
             endpoint=self.handler.get_google_auth_url,
             methods=["POST"],
             response_model=GoogleLoginResponse,
