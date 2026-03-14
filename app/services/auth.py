@@ -165,6 +165,15 @@ class AuthService:
 
                 logger.info(msg=f"Validating password...", context=ctx)
 
+                if user.password is None:
+                    logger.error(
+                        msg=f"User {login_request.email} has no password set (registered via OAuth)",
+                        context=ctx,
+                    )
+                    raise BadRequestException(
+                        message="This account was registered via social login. Please use the appropriate sign-in method."
+                    )
+
                 check_valid_password = bcrypt.checkpw(
                     login_request.password.encode("utf-8"),
                     user.password.encode("utf-8"),
