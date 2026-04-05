@@ -1,15 +1,9 @@
-import asyncio
-from datetime import datetime, timedelta, timezone
-
 from sqlalchemy import UUID
 from app.common.context import AppContext
 from app.common.middleware.logger import Logger
 from app.common.schemas.user import (
-    SwitchGroupRequest,
     UserCreate,
     UserInfo,
-    UserLogin,
-    UserLoginResponse,
     UserQuery,
     UserUpdate,
 )
@@ -18,8 +12,6 @@ from app.models.user import User
 from app.repository.registry import Registry
 from sqlalchemy.ext.asyncio import AsyncSession
 import bcrypt
-from app.core.config import settings
-import jwt
 
 salt = bcrypt.gensalt()
 logger = Logger()
@@ -30,40 +22,6 @@ class UserService:
 
     def __init__(self, repo: Registry) -> None:
         self.repo = repo
-
-    def _generate_tokens(self, user: User) -> UserLoginResponse:
-        current_time = datetime.now(timezone.utc)
-        jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
-
-        # access token
-        jwt_payload["type"] = "access"
-        jwt_payload["exp"] = current_time + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-        access_token = jwt.encode(
-            jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-        )
-
-        # refresh token
-        jwt_payload["type"] = "refresh"
-        jwt_payload["exp"] = current_time + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
-        refresh_token = jwt.encode(
-            jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-        )
-
-        login_response = UserLoginResponse(
-            email=user.email,
-            name=user.name,
-            status=user.status,
-            id=user.id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-        )
-
-        return login_response
 
     async def create_user(self, user_create: UserCreate, ctx: AppContext) -> UserInfo:
         async def _create_user(session: AsyncSession) -> UserInfo:

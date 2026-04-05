@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import secrets
 import urllib.parse
 from datetime import datetime, timedelta, timezone
@@ -6,7 +7,7 @@ from typing import Tuple
 from uuid import UUID, uuid4
 
 import httpx
-from fastapi import Response
+from fastapi import Request, Response
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
@@ -52,10 +53,40 @@ class AuthService:
         self.group_service = group_service
         self.user_service = user_service
 
-    def _generate_tokens(self, user: User) -> UserLoginResponse:
+    def _validate_user(
+        self, user: User, ctx: AppContext, login_request: UserLogin
+    ) -> None:
+        if user is None:
+            logger.error(msg=f"User not found", context=ctx)
+            raise BadRequestException(message="User not found")
+
+        logger.info(msg=f"Validating password...", context=ctx)
+
+        if user.password is None:
+            logger.error(
+                msg=f"User {login_request.email} has no password set (registered via OAuth)",
+                context=ctx,
+            )
+            raise BadRequestException(
+                message="This account was registered via social login. Please use the appropriate sign-in method."
+            )
+
+        check_valid_password = bcrypt.checkpw(
+            login_request.password.encode("utf-8"),
+            user.password.encode("utf-8"),
+        )
+        if not check_valid_password:
+            logger.error(msg=f"Incorrect password", context=ctx)
+            raise BadRequestException(message="Invalid password")
+
+        logger.info(
+            msg=f"Password validated successfully, generating tokens...",
+            context=ctx,
+        )
+
+    def _generate_access_token(self, user: User) -> str:
         current_time = datetime.now(timezone.utc)
         jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
-        logger.info(msg=f"Algorithm: {settings.ALGORITHM}")
 
         # access token
         jwt_payload["type"] = "access"
@@ -66,8 +97,11 @@ class AuthService:
         access_token = jwt.encode(
             jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
         )
+        return access_token
 
-        # refresh token
+    def _generate_refresh_token(self, user: User) -> str:
+        current_time = datetime.now(timezone.utc)
+        jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
         jwt_payload["type"] = "refresh"
         jwt_payload["exp"] = current_time + timedelta(
             days=settings.REFRESH_TOKEN_EXPIRE_DAYS
@@ -75,6 +109,18 @@ class AuthService:
 
         refresh_token = jwt.encode(
             jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+        )
+        return refresh_token
+
+    async def _generate_tokens(self, user: User, ctx: AppContext) -> UserLoginResponse:
+        access_token = self._generate_access_token(user)
+        refresh_token = self._generate_refresh_token(user)
+        hashed_access_token = hashlib.sha256(access_token.encode("utf-8")).hexdigest()
+        hashed_refresh_token = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+
+        await asyncio.gather(
+            self.repo.user_repo().set_hashed_token(hashed_access_token, ctx),
+            self.repo.user_repo().set_hashed_token(hashed_refresh_token, ctx),
         )
 
         login_response = UserLoginResponse(
@@ -150,44 +196,10 @@ class AuthService:
                 user = await self.repo.user_repo().get(
                     session=session, query=UserQuery(email=login_request.email), ctx=ctx
                 )
-                if user is None:
-                    logger.error(
-                        msg=f"User with email {login_request.email} not found",
-                        context=ctx,
-                    )
-                    raise BadRequestException(
-                        message="The user with this email does not exist"
-                    )
 
-                logger.info(
-                    msg=f"User found with email {login_request.email}", context=ctx
-                )
+                self._validate_user(user, ctx, login_request)
 
-                logger.info(msg=f"Validating password...", context=ctx)
-
-                if user.password is None:
-                    logger.error(
-                        msg=f"User {login_request.email} has no password set (registered via OAuth)",
-                        context=ctx,
-                    )
-                    raise BadRequestException(
-                        message="This account was registered via social login. Please use the appropriate sign-in method."
-                    )
-
-                check_valid_password = bcrypt.checkpw(
-                    login_request.password.encode("utf-8"),
-                    user.password.encode("utf-8"),
-                )
-                if not check_valid_password:
-                    logger.error(msg=f"Incorrect password", context=ctx)
-                    raise BadRequestException(message="Invalid password")
-
-                logger.info(
-                    msg=f"Password validated successfully, generating tokens...",
-                    context=ctx,
-                )
-
-                login_response = self._generate_tokens(user)
+                login_response = await self._generate_tokens(user, ctx)
 
                 logger.info(
                     msg=f"Tokens generated successfully, settings tokens to cookies...",
@@ -195,38 +207,7 @@ class AuthService:
                 )
 
                 if user.status == UserStatus.PENDING:
-                    logger.info(
-                        msg=f"User login for first time, creating default group..."
-                    )
-
-                    new_group = await self.group_service.create_group(
-                        group_create=GroupCreateDomain(
-                            name=f"{user.name}'s Group",
-                            description=f"Group created for {user.name} by default",
-                        ),
-                        credential=Credential(
-                            id=user.id, email=user.email, is_pending=False
-                        ),
-                        ctx=ctx,
-                    )
-
-                    logger.info(
-                        msg=f"Default group created successfully, updating user...",
-                        context=ctx,
-                    )
-                    user_update = UserUpdate(
-                        name=user.name,
-                        email=user.email,
-                        password=user.password,
-                        image_url=user.image_url,
-                        status=UserStatus.ACTIVE,
-                        active_group_id=new_group.id,
-                    )
-                    asyncio.create_task(
-                        self.user_service.update_user(
-                            user_update=user_update, user_id=user.id, ctx=ctx
-                        ),
-                    )
+                    await self.create_default_group(user, ctx)
 
                 return login_response
             except Exception as e:
@@ -299,7 +280,7 @@ class AuthService:
                 await session.refresh(new_user)
                 user = new_user
 
-            login_response = self._generate_tokens(user)
+            login_response = await self._generate_tokens(user, ctx)
             return login_response
 
         return await self.repo.transaction_wrapper(_run)
@@ -376,9 +357,20 @@ class AuthService:
                 token = jwt.decode(
                     refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
                 )
+                hashed_refresh_token = hashlib.sha256(
+                    refresh_token.encode("utf-8")
+                ).hexdigest()
+                cached_refresh_token = await self.repo.user_repo().get_token(
+                    hashed_refresh_token, ctx
+                )
+                if cached_refresh_token is None:
+                    logger.error(msg=f"Refresh token not found in cache", context=ctx)
+                    raise BadRequestException(message="Invalid refresh token")
+
                 if token["type"] != "refresh":
                     logger.error(msg=f"Invalid token type", context=ctx)
                     raise BadRequestException(message="Invalid token type")
+
                 user = await self.repo.user_repo().get(
                     session=session, query=UserQuery(id=token["id"]), ctx=ctx
                 )
@@ -394,7 +386,7 @@ class AuthService:
                     msg=f"Token decoded successfully, generating new tokens...",
                     context=ctx,
                 )
-                return self._generate_tokens(user)
+                return await self._generate_tokens(user, ctx)
             except jwt.DecodeError as e:
                 logger.error(msg=f"Invalid refresh token: DecodeError", context=ctx)
                 raise BadRequestException(message="Invalid refresh token")
@@ -494,11 +486,54 @@ class AuthService:
 
         return await self.repo.transaction_wrapper(_switch_current_user_group)
 
-    async def logout(self, ctx: AppContext, response: Response) -> None:
+    async def logout(
+        self, ctx: AppContext, response: Response, request: Request
+    ) -> None:
         try:
+            access_token = request.cookies.get("access_token")
+            refresh_token = request.cookies.get("refresh_token")
+            hashed_access_token = hashlib.sha256(
+                access_token.encode("utf-8")
+            ).hexdigest()
+            hashed_refresh_token = hashlib.sha256(
+                refresh_token.encode("utf-8")
+            ).hexdigest()
+
+            await self.repo.user_repo().delete_token(hashed_access_token, ctx)
+            await self.repo.user_repo().delete_token(hashed_refresh_token, ctx)
             response.delete_cookie("access_token")
             response.delete_cookie("refresh_token")
             return
         except Exception as e:
             logger.error(msg=f"Logout service: Exception: {e}", context=ctx)
             raise e
+
+    async def create_default_group(self, user: User, ctx: AppContext) -> None:
+        logger.info(msg=f"User login for first time, creating default group...")
+
+        new_group = await self.group_service.create_group(
+            group_create=GroupCreateDomain(
+                name=f"{user.name}'s Group",
+                description=f"Group created for {user.name} by default",
+            ),
+            credential=Credential(id=user.id, email=user.email, is_pending=False),
+            ctx=ctx,
+        )
+
+        logger.info(
+            msg=f"Default group created successfully, updating user...",
+            context=ctx,
+        )
+        user_update = UserUpdate(
+            name=user.name,
+            email=user.email,
+            password=user.password,
+            image_url=user.image_url,
+            status=UserStatus.ACTIVE,
+            active_group_id=new_group.id,
+        )
+        asyncio.create_task(
+            self.user_service.update_user(
+                user_update=user_update, user_id=user.id, ctx=ctx
+            ),
+        )

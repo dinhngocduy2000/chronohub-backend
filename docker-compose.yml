@@ -18,6 +18,23 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine          # Lightweight and recommended version (use :latest if you prefer)
+    container_name: redis
+    restart: unless-stopped        # Auto-restart unless explicitly stopped
+    ports:
+      - "6379:6379"                # Expose Redis port to your host
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data           # Persistent storage for Redis data
+    command: sh -c "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build: .
     container_name: chronohub_api
@@ -28,12 +45,17 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     env_file:
       - .env
 
 volumes:
   postgres_data:
-
+  redis-data:
+    driver: local

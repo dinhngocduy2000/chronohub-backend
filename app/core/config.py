@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl
 
@@ -45,6 +45,12 @@ class Settings(BaseAppSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
     SMTP_USE_TLS: bool = True
+
+    # Cache / Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PASSWORD: str
+    REDIS_PORT: int = 6379
+    cache_token_hash: Optional[str] = "token-hashed"
 
     # Google OAuth (for Sign in with Google)
     GOOGLE_CLIENT_ID: str = ""
