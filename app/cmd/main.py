@@ -7,6 +7,7 @@ from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import create_pg_engine
+from app.external.redis.redis import RedisClient
 from app.handler.auth import AuthHandler
 from app.handler.event import EventHandler
 from app.handler.group import GroupHandler
@@ -31,7 +32,8 @@ class App:
     def on_init_app(self) -> Callable:
         async def start_app() -> None:
             pg_engine = create_pg_engine()
-            registry = Registry(pg_engine)
+            redis_client = RedisClient()
+            registry = Registry(pg_engine=pg_engine, redis_client=redis_client)
             # ------------ Service ------------
             user_service = UserService(repo=registry)
             group_service = GroupService(repo=registry)

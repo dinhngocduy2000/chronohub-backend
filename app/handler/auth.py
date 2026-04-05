@@ -71,7 +71,7 @@ class AuthHandler:
 
     @exception_handler
     async def authenticate_user(
-        self, login_request: UserLogin, response: Response
+        self, login_request: UserLogin, response: Response, request: Request
     ) -> str:
         """
         Login a user
@@ -83,14 +83,21 @@ class AuthHandler:
             str: Success message
         """
         ctx = AppContext(trace_id=uuid4(), action=AUTHENTICATE_USER)
-
+        logger.info(
+            msg=f"Starting Authenticate User Endpoint: {request.url}; email: {login_request.email}",
+            context=ctx,
+        )
         login_response = await self.service.login_user(login_request, ctx=ctx)
-
+        logger.info(
+            msg=f"Authenticate User Endpoint Finishes {request.url}; email: {login_request.email}",
+            context=ctx,
+        )
         self._set_cookies_tokens(
             response=response,
             login_response=login_response,
             is_save_session=login_request.is_save_session,
         )
+
         logger.info(msg=f"User logged in successfully", context=ctx)
         return "Success"
 
@@ -98,12 +105,17 @@ class AuthHandler:
     async def get_google_auth_url(
         self,
         response: Response,
+        request: Request,
     ) -> GoogleLoginResponse:
         """
         Return the Google OAuth authorization URL. Frontend should redirect the user to this URL.
         The backend sets a state cookie; after Google redirects back to the callback, state is validated.
         """
         ctx = AppContext(trace_id=uuid4(), action=GOOGLE_AUTHENTICATE)
+        logger.info(
+            msg=f"Starting Get Google Auth URL Endpoint: {request.url};",
+            context=ctx,
+        )
         url, state = self.service.get_google_auth_url(ctx=ctx)
         response.set_cookie(
             key="google_oauth_state",
@@ -112,6 +124,10 @@ class AuthHandler:
             secure=True,
             samesite="lax",
             max_age=600,
+        )
+        logger.info(
+            msg=f"Get Google Auth URL Endpoint Finishes {request.url};",
+            context=ctx,
         )
         return GoogleLoginResponse(
             data=GoogleAuthUrlResponse(url=url),
@@ -130,6 +146,10 @@ class AuthHandler:
         Google OAuth callback. Exchanges the code for tokens, creates session, redirects to frontend.
         """
         ctx = AppContext(trace_id=uuid4(), action=GOOGLE_AUTHENTICATE)
+        logger.info(
+            msg=f"Starting Google Callback Endpoint: {request.url};",
+            context=ctx,
+        )
         state_cookie = request.cookies.get("google_oauth_state")
         login_response = await self.service.login_with_google_callback(
             code=code,
@@ -138,6 +158,10 @@ class AuthHandler:
             ctx=ctx,
         )
         redirect_url = settings.GOOGLE_FRONTEND_REDIRECT_URI or "http://localhost:3000"
+        logger.info(
+            msg=f"Google Callback Endpoint Finishes {request.url}; Redirecting to {redirect_url}.",
+            context=ctx,
+        )
         redir = RedirectResponse(url=redirect_url, status_code=302)
         redir.delete_cookie("google_oauth_state")
         self._set_cookies_tokens(
@@ -151,7 +175,9 @@ class AuthHandler:
         return redir
 
     @exception_handler
-    async def register_user(self, user_create: UserCreate) -> UserInfo:
+    async def register_user(
+        self, request: Request, user_create: UserCreate
+    ) -> UserInfo:
         """
         Create a new user account
 
@@ -165,7 +191,16 @@ class AuthHandler:
             BadRequestException: If email already exists or validation fails
         """
         ctx = AppContext(trace_id=uuid4(), action=REGISTER_USER)
-        return await self.service.create_user(user_create, ctx=ctx)
+        logger.info(
+            msg=f"Starting Register User Endpoint: {request.url}; params: ${user_create}",
+            context=ctx,
+        )
+        res = await self.service.create_user(user_create, ctx=ctx)
+        logger.info(
+            msg=f"Register User Endpoint Finishes {request.url}; params: ${user_create};",
+            context=ctx,
+        )
+        return res
 
     @exception_handler
     async def refresh_token(
@@ -207,7 +242,9 @@ class AuthHandler:
 
     @exception_handler
     async def get_current_user_profile(
-        self, credential: Credential = Depends(AuthMiddleware.auth_middleware)
+        self,
+        request: Request,
+        credential: Credential = Depends(AuthMiddleware.auth_middleware),
     ) -> UserInfo:
         ctx = AppContext(trace_id=uuid4(), action=GET_CURRENT_USER_PROFILE)
         """
@@ -219,24 +256,36 @@ class AuthHandler:
         Returns:
             UserInfo: User information
         """
+        logger.info(
+            msg=f"Starting Get Current User Profile Endpoint: {request.url};",
+            context=ctx,
+        )
         user_info = await self.service.get_current_user(credential.id, ctx=ctx)
         logger.info(
             msg=f"User profile retrieved successfully, returning user info...",
             context=ctx,
         )
-        logger.info(msg=f"User info: {user_info}", context=ctx)
         return user_info
 
     @exception_handler
     async def switch_current_user_group(
         self,
+        request: Request,
         input: SwitchGroupRequest,
         credential: Credential = Depends(AuthMiddleware.auth_middleware),
     ) -> str:
         ctx = AppContext(
             trace_id=uuid4(), action=SWITCH_CURRENT_USER_GROUP, actor=credential.id
         )
+        logger.info(
+            msg=f"Starting Switch Current User Group Endpoint: {request.url}; params: ${input}",
+            context=ctx,
+        )
         await self.service.switch_current_user_group(input, ctx=ctx)
+        logger.info(
+            msg=f"Switch Current User Group Endpoint Finishes {request.url}; params: ${input};",
+            context=ctx,
+        )
         return "Success"
 
     @exception_handler
@@ -255,7 +304,7 @@ class AuthHandler:
 
         return "Session is still valid"
 
-    async def logout(self, response: Response) -> str:
+    async def logout(self, response: Response, request: Request) -> str:
         ctx = AppContext(trace_id=uuid4(), action=LOGOUT)
-        await self.service.logout(ctx=ctx, response=response)
+        await self.service.logout(ctx=ctx, response=response, request=request)
         return "Success"

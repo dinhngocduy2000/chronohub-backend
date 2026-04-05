@@ -2,24 +2,25 @@ from typing import Callable
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.common.types import T
+from app.external.redis.redis import RedisClient
 from app.repository.events import EventRepository
 from app.repository.group import GroupRepository
 from app.repository.user import UserRepository
 
 
 class Registry:
+    _redis_client: RedisClient
     _pg_engine: AsyncEngine
     _user_repo: UserRepository
     _group_repo: GroupRepository
     _event_repo: EventRepository
-    # _test_repo: TestRepository
 
-    def __init__(self, pg_engine: AsyncEngine) -> None:
+    def __init__(self, pg_engine: AsyncEngine, redis_client: RedisClient) -> None:
         self._pg_engine = pg_engine
-        self._user_repo = UserRepository()
+        self._user_repo = UserRepository(redis_client=redis_client)
         self._group_repo = GroupRepository()
         self._event_repo = EventRepository()
-        # self._test_repo = TestRepository()
+        self._redis_client = redis_client
 
     async def transaction_wrapper(self, tx_func: Callable[[AsyncSession], T]) -> T:
         try:

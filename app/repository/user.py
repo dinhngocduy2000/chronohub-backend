@@ -7,14 +7,18 @@ from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
 from app.common.schemas.user import UserInfo, UserJoinOption, UserQuery, UserUpdate
+from app.external.redis.redis import RedisClient
 from app.models.user import User
+from app.core.config import settings
 
 logger = Logger()
 
 
 class UserRepository:
-    def __init__(self) -> None:
-        pass
+    _redis_client: RedisClient
+
+    def __init__(self, redis_client: RedisClient) -> None:
+        self._redis_client = redis_client
 
     def _prepare_query(self, query: UserQuery, stmt: Select) -> Select:
         stmt = stmt.where(User.status != UserStatus.DELETED)
@@ -85,4 +89,37 @@ class UserRepository:
             return user if user else None
         except Exception as e:
             logger.error(msg=f"Get user repository: Exception: {e}", context=ctx)
+            raise e
+
+    # ---------------- Redis ----------------
+
+    async def set_hashed_token(self, hashed_token: str, ctx: AppContext) -> None:
+        try:
+            await self._redis_client.set(
+                f"{settings.cache_token_hash}:{hashed_token}",
+                hashed_token,
+                expire=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            )
+        except Exception as e:
+            logger.error(
+                msg=f"Set hashed token repository: Exception: {e}", context=ctx
+            )
+            raise e
+
+    async def get_token(self, hashed_token: str, ctx: AppContext) -> str:
+        try:
+            return await self._redis_client.get(
+                f"{settings.cache_token_hash}:{hashed_token}"
+            )
+        except Exception as e:
+            logger.error(msg=f"Get token repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def delete_token(self, hashed_token: str, ctx: AppContext) -> None:
+        try:
+            await self._redis_client.delete(
+                f"{settings.cache_token_hash}:{hashed_token}"
+            )
+        except Exception as e:
+            logger.error(msg=f"Delete token repository: Exception: {e}", context=ctx)
             raise e
