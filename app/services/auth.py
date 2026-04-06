@@ -11,7 +11,7 @@ from fastapi import Request, Response
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
-from app.common.schemas.group import GroupCreateDomain, GroupQuery
+from app.common.schemas.group import GroupCreateDomain, GroupInfo, GroupQuery
 from app.common.schemas.user import (
     Credential,
     SwitchGroupRequest,
@@ -508,32 +508,40 @@ class AuthService:
             logger.error(msg=f"Logout service: Exception: {e}", context=ctx)
             raise e
 
-    async def create_default_group(self, user: User, ctx: AppContext) -> None:
-        logger.info(msg=f"User login for first time, creating default group...")
-
-        new_group = await self.group_service.create_group(
-            group_create=GroupCreateDomain(
-                name=f"{user.name}'s Group",
-                description=f"Group created for {user.name} by default",
-            ),
-            credential=Credential(id=user.id, email=user.email, is_pending=False),
-            ctx=ctx,
-        )
-
+    async def create_default_group(self, user: User, ctx: AppContext) -> GroupInfo:
         logger.info(
-            msg=f"Default group created successfully, updating user...",
-            context=ctx,
+            msg=f"User login for first time, creating default group...", context=ctx
         )
-        user_update = UserUpdate(
-            name=user.name,
-            email=user.email,
-            password=user.password,
-            image_url=user.image_url,
-            status=UserStatus.ACTIVE,
-            active_group_id=new_group.id,
-        )
-        asyncio.create_task(
-            self.user_service.update_user(
-                user_update=user_update, user_id=user.id, ctx=ctx
-            ),
-        )
+        try:
+            new_group = await self.group_service.create_group(
+                group_create=GroupCreateDomain(
+                    name=f"{user.name}'s Group",
+                    description=f"Group created for {user.name} by default",
+                ),
+                credential=Credential(id=user.id, email=user.email, is_pending=False),
+                ctx=ctx,
+            )
+
+            logger.info(
+                msg=f"Default group created successfully, updating user...",
+                context=ctx,
+            )
+            user_update = UserUpdate(
+                name=user.name,
+                email=user.email,
+                password=user.password,
+                image_url=user.image_url,
+                status=UserStatus.ACTIVE,
+                active_group_id=new_group.id,
+            )
+            asyncio.create_task(
+                self.user_service.update_user(
+                    user_update=user_update, user_id=user.id, ctx=ctx
+                ),
+            )
+            return new_group
+        except Exception as e:
+            logger.error(
+                msg=f"Create default group service: Exception: {e}", context=ctx
+            )
+            raise e
