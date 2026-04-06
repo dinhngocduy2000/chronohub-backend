@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, status
 
+from app.common.schemas.common import BaseResponse
 from app.common.schemas.events import EventCalendarView, EventDetailInfo
 from app.handler.event import EventHandler
 
@@ -17,7 +18,7 @@ class EventRouter:
             path="/",
             endpoint=self.handler.list_calendar_events,
             methods=["GET"],
-            response_model=List[EventCalendarView],
+            response_model=BaseResponse[List[EventCalendarView]],
             status_code=status.HTTP_200_OK,
             summary="List calendar events",
             description="List calendar events for a given month and year",
@@ -27,7 +28,7 @@ class EventRouter:
             path="/{id}",
             endpoint=self.handler.get_event_detail,
             methods=["GET"],
-            response_model=EventDetailInfo,
+            response_model=BaseResponse[EventDetailInfo],
             status_code=status.HTTP_200_OK,
             summary="Get event detail",
             description="Get event detail by id",

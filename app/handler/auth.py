@@ -18,6 +18,7 @@ from app.common.exceptions import BadRequestException, UnauthorizedException
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.common.middleware.logger import Logger
+from app.common.schemas.common import BaseResponse
 from app.common.schemas.user import (
     Credential,
     GoogleAuthUrlResponse,
@@ -243,7 +244,7 @@ class AuthHandler:
         self,
         request: Request,
         credential: Credential = Depends(AuthMiddleware.auth_middleware),
-    ) -> UserInfo:
+    ) -> BaseResponse[UserInfo]:
         ctx = AppContext(trace_id=uuid4(), action=GET_CURRENT_USER_PROFILE)
         """
         Get current user profile based on the user id in the credential
@@ -263,7 +264,11 @@ class AuthHandler:
             msg=f"User profile retrieved successfully, returning user info...",
             context=ctx,
         )
-        return user_info
+        return BaseResponse(
+            data=user_info,
+            message="Success",
+            statusCode=200,
+        )
 
     @exception_handler
     async def switch_current_user_group(
