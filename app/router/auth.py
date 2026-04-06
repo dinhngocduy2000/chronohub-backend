@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status
 from fastapi.responses import RedirectResponse
 
+from app.common.schemas.common import BaseResponse
 from app.common.schemas.user import (
     GoogleLoginResponse,
     UserInfo,
@@ -183,7 +184,7 @@ class AuthRouter:
             path="/profile",
             endpoint=self.handler.get_current_user_profile,
             methods=["GET"],
-            response_model=UserInfo,
+            response_model=BaseResponse[UserInfo],
             status_code=status.HTTP_200_OK,
             summary="Get current user profile",
             description="Get current user profile based on the user id in the credential",
@@ -194,14 +195,18 @@ class AuthRouter:
                     "content": {
                         "application/json": {
                             "example": {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "name": "John Doe",
-                                "email": "john@example.com",
-                                "status": "active",
-                                "created_at": "2026-01-25T10:30:00Z",
-                                "updated_at": "2026-01-25T10:30:00Z",
-                                "image_url": None,
-                                "active_group_id": "550e8400-e29b-41d4-a716-446655440000",
+                                "data": {
+                                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                                    "name": "John Doe",
+                                    "email": "john@example.com",
+                                    "status": "active",
+                                    "created_at": "2026-01-25T10:30:00Z",
+                                    "updated_at": "2026-01-25T10:30:00Z",
+                                    "image_url": None,
+                                    "active_group_id": "550e8400-e29b-41d4-a716-446655440000",
+                                },
+                                "message": "Success",
+                                "statusCode": 200,
                             }
                         }
                     },

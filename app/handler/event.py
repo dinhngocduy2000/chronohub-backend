@@ -13,6 +13,7 @@ from app.common.enum.context_actions import (
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.common.middleware.logger import Logger
+from app.common.schemas.common import BaseResponse
 from app.common.schemas.events import (
     EventCalendarView,
     EventCreate,
@@ -58,7 +59,7 @@ class EventHandler:
         request: Request,
         query: ListEventQuery = Query(),
         credential: Credential = Depends(AuthMiddleware.auth_middleware),
-    ) -> List[EventCalendarView]:
+    ) -> BaseResponse[List[EventCalendarView]]:
         ctx = AppContext(
             trace_id=uuid4(), action=LIST_CALENDAR_EVENTS, actor=credential.id
         )
@@ -71,7 +72,11 @@ class EventHandler:
             msg=f"List Calendar Events Endpoint Finishes {request.url}; params: ${query};",
             context=ctx,
         )
-        return res
+        return BaseResponse(
+            data=res,
+            message="Success",
+            statusCode=200,
+        )
 
     @exception_handler
     async def get_event_detail(
@@ -79,7 +84,7 @@ class EventHandler:
         request: Request,
         id: UUID = Path(..., description="Event id"),
         credential: Credential = Depends(AuthMiddleware.auth_middleware),
-    ) -> EventDetailInfo:
+    ) -> BaseResponse[EventDetailInfo]:
         ctx = AppContext(trace_id=uuid4(), action=GET_EVENT_DETAIL, actor=credential.id)
         query: EventQuery = EventQuery(id=id)
         logger.info(
@@ -91,7 +96,11 @@ class EventHandler:
             msg=f"Get Event Detail Endpoint Finishes {request.url}; params: ${query};",
             context=ctx,
         )
-        return res
+        return BaseResponse(
+            data=res,
+            message="Success",
+            statusCode=200,
+        )
 
     @exception_handler
     async def delete_event(
