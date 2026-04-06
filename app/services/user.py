@@ -82,7 +82,7 @@ class UserService:
                 raise BadRequestException(message="User with this email already exists")
 
             new_user = await self.repo.user_repo().update_user(
-                session=session, user_id=user_id, user_update=user_update
+                session=session, user_id=user_id, user_update=user_update, ctx=ctx
             )
             return new_user
 
