@@ -63,9 +63,7 @@ class AuthHandler:
             secure=True,  # critical on http
             samesite="lax",
             max_age=(
-                settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
-                if is_save_session
-                else None
+                settings.REFRESH_TOKEN_EXPIRE_SECONDS if is_save_session else None
             ),
         )
 

@@ -58,7 +58,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
+          ACCESS_TOKEN_EXPIRE_SECONDS: ${{ vars.ACCESS_TOKEN_EXPIRE_SECONDS }}
         run: |
           source .venv/bin/activate
           alembic current || echo "No current revision found"
@@ -67,7 +67,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
+          ACCESS_TOKEN_EXPIRE_SECONDS: ${{ vars.ACCESS_TOKEN_EXPIRE_SECONDS }}
         run: |
           source .venv/bin/activate
 
@@ -84,7 +84,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          ACCESS_TOKEN_EXPIRE_MINUTES: ${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
+          ACCESS_TOKEN_EXPIRE_SECONDS: ${{ vars.ACCESS_TOKEN_EXPIRE_SECONDS }}
         run: |
           source .venv/bin/activate
           alembic current || echo "Final state could not be determined"

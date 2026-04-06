@@ -93,12 +93,17 @@ class UserRepository:
 
     # ---------------- Redis ----------------
 
-    async def set_hashed_token(self, hashed_token: str, ctx: AppContext) -> None:
+    async def set_hashed_token(
+        self,
+        hashed_token: str,
+        ctx: AppContext,
+        expire: Optional[int] = settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+    ) -> None:
         try:
             await self._redis_client.set(
                 f"{settings.cache_token_hash}:{hashed_token}",
                 hashed_token,
-                expire=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+                expire=expire,
             )
         except Exception as e:
             logger.error(

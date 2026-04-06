@@ -91,7 +91,7 @@ class AuthService:
         # access token
         jwt_payload["type"] = "access"
         jwt_payload["exp"] = current_time + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS
         )
 
         access_token = jwt.encode(
@@ -104,7 +104,7 @@ class AuthService:
         jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
         jwt_payload["type"] = "refresh"
         jwt_payload["exp"] = current_time + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+            seconds=settings.REFRESH_TOKEN_EXPIRE_SECONDS
         )
 
         refresh_token = jwt.encode(
@@ -130,7 +130,7 @@ class AuthService:
             id=user.id,
             access_token=access_token,
             refresh_token=refresh_token,
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            expires_in=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
         )
 
         return login_response
