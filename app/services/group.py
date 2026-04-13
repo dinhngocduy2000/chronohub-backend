@@ -1,4 +1,5 @@
 from app.common.context import AppContext
+from app.common.enum.user_status import UserStatus
 from app.common.exceptions import BadRequestException
 from app.common.middleware.logger import Logger
 from app.common.schemas.group import (
@@ -7,7 +8,7 @@ from app.common.schemas.group import (
     GroupInfo,
     GroupQuery,
 )
-from app.common.schemas.user import Credential
+from app.common.schemas.user import Credential, UserUpdate
 from app.repository.registry import Registry
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +50,19 @@ class GroupService:
                 new_group = await self.repo.group_repo().create_group(
                     session=session, group_create=group_create_domain, ctx=ctx
                 )
+                logger.info(
+                    msg=f"Credential is pending: {credential.is_pending}", context=ctx
+                )
+                if credential.is_pending:
+                    await self.repo.user_repo().update_user(
+                        session=session,
+                        user_id=credential.id,
+                        user_update=UserUpdate(
+                            active_group_id=new_group.id, status=UserStatus.ACTIVE
+                        ),
+                        ctx=ctx,
+                    )
+
                 logger.info(msg=f"Group created successfully", context=ctx)
                 return new_group
             except Exception as e:

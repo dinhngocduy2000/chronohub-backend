@@ -4,7 +4,7 @@ import secrets
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Tuple
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import httpx
 from fastapi import Request, Response
@@ -93,6 +93,7 @@ class AuthService:
         jwt_payload["exp"] = current_time + timedelta(
             seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS
         )
+        jwt_payload["is_pending"] = user.status == UserStatus.PENDING
 
         access_token = jwt.encode(
             jwt_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM
@@ -120,7 +121,9 @@ class AuthService:
 
         await asyncio.gather(
             self.repo.user_repo().set_hashed_token(hashed_access_token, ctx),
-            self.repo.user_repo().set_hashed_token(hashed_refresh_token, ctx),
+            self.repo.user_repo().set_hashed_token(
+                hashed_refresh_token, ctx, expire=settings.REFRESH_TOKEN_EXPIRE_SECONDS
+            ),
         )
 
         login_response = UserLoginResponse(
@@ -414,7 +417,7 @@ class AuthService:
                 logger.error(msg=f"Invalid refresh token: InvalidKeyError", context=ctx)
                 raise BadRequestException(message="Invalid refresh token")
             except Exception as e:
-                logger.error(msg=f"Invalid refresh token: Exception", context=ctx)
+                logger.error(msg=f"Invalid refresh token: Exception: {e}", context=ctx)
                 raise e
 
         return await self.repo.transaction_wrapper(_refresh_token)
@@ -522,23 +525,6 @@ class AuthService:
                 ctx=ctx,
             )
 
-            logger.info(
-                msg=f"Default group created successfully, updating user...",
-                context=ctx,
-            )
-            user_update = UserUpdate(
-                name=user.name,
-                email=user.email,
-                password=user.password,
-                image_url=user.image_url,
-                status=UserStatus.ACTIVE,
-                active_group_id=new_group.id,
-            )
-            asyncio.create_task(
-                self.user_service.update_user(
-                    user_update=user_update, user_id=user.id, ctx=ctx
-                ),
-            )
             return new_group
         except Exception as e:
             logger.error(
