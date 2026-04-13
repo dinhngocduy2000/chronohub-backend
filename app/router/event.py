@@ -15,7 +15,7 @@ class EventRouter:
         self.handler = handler
 
         self.route.add_api_route(
-            path="/",
+            path="",
             endpoint=self.handler.list_calendar_events,
             methods=["GET"],
             response_model=BaseResponse[List[EventCalendarView]],
@@ -35,7 +35,7 @@ class EventRouter:
         )
 
         self.route.add_api_route(
-            path="/",
+            path="",
             endpoint=self.handler.create_event,
             methods=["POST"],
             response_model=EventDetailInfo,

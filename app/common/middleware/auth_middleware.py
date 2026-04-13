@@ -50,6 +50,7 @@ class AuthMiddleware:
         exp_time = decoded_token["exp"]
         user_id = uuid.UUID(decoded_token["id"])
         user_email = decoded_token["email"]
+        is_pending = decoded_token["is_pending"]
         logger.info(
             msg=f"Token decoded successfully with user id {user_id}", context=ctx
         )
@@ -59,20 +60,20 @@ class AuthMiddleware:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
             )
 
-        return user_id, user_email, exp_time
+        return user_id, user_email, exp_time, is_pending
 
     @classmethod
     async def auth_middleware(cls, request: Request) -> Credential:
         ctx = AppContext(trace_id=uuid.uuid4(), action=AUTHENTICATE_USER)
         logger.info(msg=f"Getting token from cookies...", context=ctx)
 
-        user_id, user_email, exp_time = await cls._validate_cookie_tokens(
+        user_id, user_email, exp_time, is_pending = await cls._validate_cookie_tokens(
             request, ctx
         )
         credential: Credential = Credential(
             id=user_id,
             email=user_email,
-            is_pending=False,
+            is_pending=is_pending,
             exp_time=exp_time,
         )
 
