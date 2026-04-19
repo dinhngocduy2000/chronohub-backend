@@ -8,7 +8,7 @@ from app.common.context import AppContext
 from app.common.enum.context_actions import AUTHENTICATE_USER
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
-from app.common.schemas.user import Credential, UserInfo
+from app.common.schemas.user import Credential
 from app.core.config import settings
 from app.services.auth import AuthService
 
@@ -47,6 +47,17 @@ class AuthMiddleware:
         decoded_token = jwt.decode(
             access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
+        logger.info(msg=f"User status: {decoded_token['status']}", context=ctx)
+        if decoded_token["status"] in [
+            UserStatus.DELETED,
+            UserStatus.INACTIVE,
+        ]:
+            logger.error(msg=f"User is not active or deleted", context=ctx)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not active or deleted",
+            )
+
         exp_time = decoded_token["exp"]
         user_id = uuid.UUID(decoded_token["id"])
         user_email = decoded_token["email"]
@@ -60,19 +71,21 @@ class AuthMiddleware:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
             )
 
-        return user_id, user_email, exp_time, is_pending
+        user_status = decoded_token["status"]
+        return user_id, user_email, exp_time, is_pending, user_status
 
     @classmethod
     async def auth_middleware(cls, request: Request) -> Credential:
         ctx = AppContext(trace_id=uuid.uuid4(), action=AUTHENTICATE_USER)
         logger.info(msg=f"Getting token from cookies...", context=ctx)
 
-        user_id, user_email, exp_time, is_pending = await cls._validate_cookie_tokens(
-            request, ctx
+        user_id, user_email, exp_time, is_pending, user_status = (
+            await cls._validate_cookie_tokens(request, ctx)
         )
         credential: Credential = Credential(
             id=user_id,
             email=user_email,
+            status=user_status,
             is_pending=is_pending,
             exp_time=exp_time,
         )

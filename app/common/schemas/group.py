@@ -9,6 +9,10 @@ if TYPE_CHECKING:
     from app.common.schemas.user import UserInfo
 
 
+class GroupJoinOption(BaseModel):
+    include_members: Optional[bool] = False
+
+
 class GroupInfo(BaseModel):
     id: UUID = Field(None, description="Group's id")
     name: str = Field(None, description="Group's name")
@@ -31,3 +35,21 @@ class GroupQuery(BaseModel):
     name: Optional[str] = Field(None, description="Group's name")
     id: Optional[UUID] = Field(None, description="Group's id")
     owner_id: Optional[UUID] = Field(None, description="Group's owner id")
+
+
+class GroupUpdate(BaseModel):
+    name: Optional[str] = Field(None, description="Group's name")
+    description: Optional[str] = Field(None, description="Group's description")
+    members: Optional[List[UUID]] = Field(default=[], description="Group's members")
+
+
+class GroupMemberInfo(BaseModel):
+    member_id: UUID = Field(None, description="Group member's id")
+    group_id: UUID = Field(None, description="Group's id")
+    created_at: datetime = Field(None, description="Group member's created at")
+    updated_at: datetime = Field(None, description="Group member's updated at")
+
+
+class GroupMemberCreate(BaseModel):
+    member_id: UUID = Field(None, description="Group member's id")
+    group_id: UUID = Field(None, description="Group's id")

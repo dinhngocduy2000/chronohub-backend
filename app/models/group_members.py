@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, PrimaryKeyConstraint, func
+from app.common.schemas.group import GroupMemberInfo
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQL_UUID
@@ -34,3 +35,11 @@ class GroupMembers(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="groups")  # type: ignore
     group: Mapped["Group"] = relationship("Group", back_populates="members")  # type: ignore
+
+    def view(self) -> GroupMemberInfo:
+        return GroupMemberInfo(
+            member_id=self.member_id,
+            group_id=self.group_id,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
