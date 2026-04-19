@@ -1,5 +1,8 @@
+from typing import Dict, List
+from uuid import UUID
 from fastapi import APIRouter, status
 
+from app.common.schemas.common import BaseResponse, HashMapResponse
 from app.common.schemas.group import GroupInfo
 from app.handler.group import GroupHandler
 
@@ -50,4 +53,26 @@ class GroupRouter:
                     },
                 },
             },
+        )
+
+        self.router.add_api_route(
+            path="/key-value",
+            endpoint=self.handler.list_group_key_value,
+            methods=["GET"],
+            response_model=BaseResponse[List[HashMapResponse]],
+            status_code=status.HTTP_200_OK,
+            summary="List all groups with their IDs and names",
+            description="List all groups with their IDs and names",
+            response_description="List of groups with their IDs and names",
+        )
+
+        self.router.add_api_route(
+            path="/{group_id}",
+            endpoint=self.handler.get_group,
+            methods=["GET"],
+            response_model=BaseResponse[GroupInfo],
+            status_code=status.HTTP_200_OK,
+            summary="Get a group by its ID",
+            description="Get a group by its ID",
+            response_description="The group information",
         )

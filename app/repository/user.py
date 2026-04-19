@@ -34,12 +34,6 @@ class UserRepository:
 
         return stmt
 
-    def _join_query(self, stmt: Select, options: Optional[UserJoinOption]) -> Select:
-        if options is not None:
-            if options.included_owned_groups:
-                stmt = stmt.options(joinedload(User.owned_groups))
-        return stmt
-
     async def create_user(self, session: AsyncSession, user_info: User) -> UserInfo:
         session.add(user_info)  # Note: session.add() is NOT async, no await needed
         await session.flush()  # Flush to get the ID if needed
@@ -82,7 +76,6 @@ class UserRepository:
     ) -> Optional[User]:
         try:
             stmt = select(User)
-            stmt = self._join_query(stmt, options)
             stmt = self._prepare_query(query, stmt)
             result = await session.execute(stmt)
             user = result.scalars().first()

@@ -1,4 +1,5 @@
 from typing import Generic, List, Optional
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 from app.common.types import T
@@ -8,6 +9,11 @@ class BaseResponse(BaseModel, Generic[T]):
     data: T = Field(..., description="Data")
     message: str = Field(..., description="Message")
     statusCode: int = Field(..., description="Status code")
+
+
+class HashMapResponse(BaseModel):
+    key: UUID = Field(..., description="ID")
+    value: str = Field(..., description="Name")
 
 
 class PaginationBaseRequest(BaseModel):

@@ -23,9 +23,6 @@ class UserInfo(UserBase):
     updated_at: datetime = Field(None, description="User's updated at")
     image_url: Optional[str] = Field(None, description="User's image url")
     group_id: Optional[UUID] = Field(None, description="User's group id")
-    owned_groups: Optional[List[GroupInfo]] = Field(
-        None, description="User's owned groups"
-    )
 
 
 class UserQuery(BaseModel):
@@ -55,6 +52,7 @@ class RefreshTokenRequest(BaseModel):
 class Credential(BaseModel):
     id: UUID
     email: str
+    status: UserStatus
     # role: Role
     is_pending: Optional[bool] = None
     exp_time: Optional[datetime] = None

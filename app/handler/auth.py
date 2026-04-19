@@ -220,8 +220,6 @@ class AuthHandler:
         ctx = AppContext(trace_id=uuid4(), action=REFRESH_TOKEN)
         logger.info(msg=f"Getting refresh token from cookies...", context=ctx)
         refresh_token = request.cookies.get("refresh_token")
-        access_token = request.cookies.get("access_token")
-        logger.info(msg=f"Access token: {access_token}", context=ctx)
         if refresh_token is None:
             logger.error(msg=f"Refresh token not found in cookies...", context=ctx)
             raise BadRequestException("Refresh  token is required")

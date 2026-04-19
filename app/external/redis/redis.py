@@ -9,7 +9,6 @@ class RedisClient:
     pool: ConnectionPool
 
     def __init__(self):
-        logger.info(f"REDIS HOST: {settings.REDIS_HOST}")
         self.pool = ConnectionPool(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
