@@ -125,7 +125,9 @@ class AuthService:
         hashed_refresh_token = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
 
         await asyncio.gather(
-            self.repo.user_repo().set_hashed_token(hashed_access_token, ctx),
+            self.repo.user_repo().set_hashed_token(
+                hashed_access_token, ctx, expire=settings.ACCESS_TOKEN_EXPIRE_SECONDS
+            ),
             self.repo.user_repo().set_hashed_token(
                 hashed_refresh_token, ctx, expire=settings.REFRESH_TOKEN_EXPIRE_SECONDS
             ),
