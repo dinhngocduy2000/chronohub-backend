@@ -132,7 +132,7 @@ class GroupService:
                 )
                 logger.info(msg=f"Groups: {groups}", context=ctx)
                 return [
-                    HashMapResponse(key=group["id"], value=group["name"])
+                    HashMapResponse(value=group["id"], label=group["name"])
                     for group in groups
                 ]
             except Exception as e:

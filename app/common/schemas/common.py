@@ -12,8 +12,8 @@ class BaseResponse(BaseModel, Generic[T]):
 
 
 class HashMapResponse(BaseModel):
-    key: UUID = Field(..., description="ID")
-    value: str = Field(..., description="Name")
+    value: UUID = Field(..., description="ID")
+    label: str = Field(..., description="Name")
 
 
 class PaginationBaseRequest(BaseModel):
