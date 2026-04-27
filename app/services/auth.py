@@ -3,7 +3,7 @@ import hashlib
 import secrets
 import urllib.parse
 from datetime import datetime, timedelta, timezone
-from typing import Tuple
+from typing import Optional, Tuple
 from uuid import UUID
 
 import httpx
@@ -28,6 +28,7 @@ from app.common.schemas.user import (
     UserLoginResponse,
     UserQuery,
     UserUpdate,
+    ValidateOTPRequest,
 )
 from app.common.exceptions import BadRequestException
 from app.common.utils.generate_otp import generate_otp
@@ -68,12 +69,16 @@ class AuthService:
         self.user_service = user_service
         self.mail_service = mail_service
 
-    def _validate_user(
+    def _validate_login_user(
         self, user: User, ctx: AppContext, login_request: UserLogin
     ) -> None:
         if user is None:
             logger.error(msg=f"User not found", context=ctx)
             raise BadRequestException(message="User not found")
+
+        if user.status == UserStatus.PENDING:
+            logger.error(msg=f"User is pending", context=ctx)
+            raise BadRequestException(message="Invalid credentials")
 
         logger.info(msg=f"Validating password...", context=ctx)
 
@@ -98,6 +103,7 @@ class AuthService:
             msg=f"Password validated successfully, generating tokens...",
             context=ctx,
         )
+        return
 
     def _generate_access_token(self, user: User) -> str:
         current_time = datetime.now(timezone.utc)
@@ -258,7 +264,7 @@ class AuthService:
                     session=session, query=UserQuery(email=login_request.email), ctx=ctx
                 )
 
-                self._validate_user(user, ctx, login_request)
+                self._validate_login_user(user, ctx, login_request)
 
                 login_response = await self._generate_tokens(user, ctx)
 
@@ -266,9 +272,6 @@ class AuthService:
                     msg=f"Tokens generated successfully, settings tokens to cookies...",
                     context=ctx,
                 )
-
-                if user.status == UserStatus.PENDING:
-                    await self.create_default_group(user, ctx)
 
                 return login_response
             except Exception as e:
@@ -408,6 +411,45 @@ class AuthService:
             raise BadRequestException(message="Invalid Google credential")
 
         return await self._login_response_from_google_idinfo(idinfo, ctx)
+
+    async def validate_otp(
+        self, otp_request: ValidateOTPRequest, ctx: AppContext
+    ) -> None:
+        async def _validate_otp(session: AsyncSession) -> Optional[bool]:
+            try:
+                user, cache_otp = await asyncio.gather(
+                    self.repo.user_repo().get(
+                        session=session,
+                        query=UserQuery(email=otp_request.email),
+                        ctx=ctx,
+                    ),
+                    self.repo.user_repo().get_otp_code(otp_request, ctx),
+                )
+                if user is None:
+                    logger.error(msg=f"User not found", context=ctx)
+                    raise BadRequestException(message="User not found")
+
+                if cache_otp is None:
+                    logger.error(msg=f"OTP not found in cache", context=ctx)
+                    raise BadRequestException(message="Invalid OTP")
+                if cache_otp != otp_request.otp:
+                    logger.error(msg=f"Invalid OTP", context=ctx)
+                    raise BadRequestException(message="Invalid OTP")
+                await asyncio.gather(
+                    self.repo.user_repo().delete_otp_code(otp_request, ctx),
+                    self.repo.user_repo().update_user(
+                        session=session,
+                        user_id=user.id,
+                        user_update=UserUpdate(status=UserStatus.ACTIVE),
+                        ctx=ctx,
+                    ),
+                )
+                return True
+            except Exception as e:
+                logger.error(msg=f"Validate OTP service: Exception: {e}", context=ctx)
+                raise e
+
+        return await self.repo.transaction_wrapper(_validate_otp)
 
     async def refresh_token(
         self, refresh_token: str, ctx: AppContext

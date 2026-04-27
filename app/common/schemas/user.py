@@ -142,6 +142,11 @@ class UserLogin(BaseModel):
         return password
 
 
+class ValidateOTPRequest(BaseModel):
+    otp: str = Field(..., description="OTP")
+    email: str = Field(..., description="User's email")
+
+
 class GoogleLoginRequest(BaseModel):
     """Request body for Google Sign-In. Send the ID token from Google's OAuth response."""
 

@@ -6,7 +6,13 @@ from sqlalchemy.orm import joinedload
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
 from app.common.middleware.logger import Logger
-from app.common.schemas.user import UserInfo, UserJoinOption, UserQuery, UserUpdate
+from app.common.schemas.user import (
+    UserInfo,
+    UserJoinOption,
+    UserQuery,
+    UserUpdate,
+    ValidateOTPRequest,
+)
 from app.external.redis.redis import RedisClient
 from app.models.user import User
 from app.core.config import settings
@@ -131,4 +137,26 @@ class UserRepository:
             )
         except Exception as e:
             logger.error(msg=f"Set OTP code repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def get_otp_code(
+        self, otp_request: ValidateOTPRequest, ctx: AppContext
+    ) -> str:
+        try:
+            return await self._redis_client.get(
+                f"{otp_request.otp}:{otp_request.email}",
+            )
+        except Exception as e:
+            logger.error(msg=f"Get OTP code repository: Exception: {e}", context=ctx)
+            raise e
+
+    async def delete_otp_code(
+        self, otp_request: ValidateOTPRequest, ctx: AppContext
+    ) -> None:
+        try:
+            await self._redis_client.delete(
+                f"{otp_request.otp}:{otp_request.email}",
+            )
+        except Exception as e:
+            logger.error(msg=f"Delete OTP code repository: Exception: {e}", context=ctx)
             raise e
