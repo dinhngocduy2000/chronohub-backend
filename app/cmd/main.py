@@ -1,5 +1,8 @@
+from pathlib import Path
 from typing import Callable
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from mangum import Mangum
 from app.common.middleware.auth_middleware import AuthMiddleware
@@ -94,6 +97,13 @@ class App:
 
     def __init__(self) -> None:
         self.application = FastAPI(**settings.fastapi_kwargs)
+        _public_static = Path(__file__).resolve().parents[2] / "static" / "public"
+        _public_static.mkdir(parents=True, exist_ok=True)
+        self.application.mount(
+            "/public",
+            StaticFiles(directory=str(_public_static)),
+            name="public",
+        )
         self.application.add_middleware(
             CORSMiddleware,
             allow_origins=["http://localhost:3000"],
