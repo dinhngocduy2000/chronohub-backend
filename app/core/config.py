@@ -26,7 +26,11 @@ class Settings(BaseAppSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
-
+    API_URL: str = "http://localhost:8000"
+    # Origin for absolute URLs in outbound email (images, links). Must be reachable from
+    # the public internet (e.g. https://api.yourdomain.com). If unset, API_URL is used —
+    # localhost will not work in Gmail because Google's image proxy cannot fetch it.
+    EMAIL_PUBLIC_BASE_URL: Optional[str] = None
     # Database
     DATABASE_URL: str
     POOL_SIZE: int = 40
@@ -68,6 +72,12 @@ class Settings(BaseAppSettings):
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=True, extra="allow"
     )
+
+    @property
+    def email_public_base_url(self) -> str:
+        """Base URL for email HTML (img src, etc.); strip trailing slash."""
+        base = self.EMAIL_PUBLIC_BASE_URL or self.API_URL
+        return base.rstrip("/")
 
     @property
     def fastapi_kwargs(self) -> Dict[str, Any]:
