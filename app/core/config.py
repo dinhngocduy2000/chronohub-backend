@@ -51,12 +51,14 @@ class Settings(BaseAppSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
     SMTP_USE_TLS: bool = True
+    OTP_CODE_EXPIRE_SECONDS: int = 60 * 10  # 10 minutes
 
     # Cache / Redis
     REDIS_HOST: str = "localhost"
     REDIS_PASSWORD: str
     REDIS_PORT: int = 6379
     cache_token_hash: Optional[str] = "token-hashed"
+    CACHE_OTP_CODE: Optional[str] = "CACHE_OTP_CODE"
 
     # Google OAuth (for Sign in with Google)
     GOOGLE_CLIENT_ID: str = ""

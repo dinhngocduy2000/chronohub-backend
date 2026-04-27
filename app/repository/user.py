@@ -121,3 +121,14 @@ class UserRepository:
         except Exception as e:
             logger.error(msg=f"Delete token repository: Exception: {e}", context=ctx)
             raise e
+
+    async def set_otp_code(self, email: str, otp_code: str, ctx: AppContext) -> None:
+        try:
+            await self._redis_client.set(
+                f"{otp_code}:{email}",
+                otp_code,
+                expire=settings.OTP_CODE_EXPIRE_SECONDS,
+            )
+        except Exception as e:
+            logger.error(msg=f"Set OTP code repository: Exception: {e}", context=ctx)
+            raise e

@@ -17,6 +17,7 @@ from app.common.schemas.group import (
     GroupJoinOption,
     GroupQuery,
 )
+from app.common.schemas.mail import SendMailRequest
 from app.common.schemas.user import (
     Credential,
     SwitchGroupRequest,
@@ -29,6 +30,9 @@ from app.common.schemas.user import (
     UserUpdate,
 )
 from app.common.exceptions import BadRequestException
+from app.common.utils.generate_otp import generate_otp
+from app.external.mail.jinja_templates import render_mail_html
+from app.external.mail.mail import MailService
 from app.models.user import User
 from app.repository.registry import Registry
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,13 +54,19 @@ class AuthService:
     repo: Registry
     group_service: GroupService
     user_service: UserService
+    mail_service: MailService
 
     def __init__(
-        self, repo: Registry, group_service: GroupService, user_service: UserService
+        self,
+        repo: Registry,
+        group_service: GroupService,
+        user_service: UserService,
+        mail_service: MailService,
     ) -> None:
         self.repo = repo
         self.group_service = group_service
         self.user_service = user_service
+        self.mail_service = mail_service
 
     def _validate_user(
         self, user: User, ctx: AppContext, login_request: UserLogin
@@ -145,53 +155,94 @@ class AuthService:
 
         return login_response
 
-    async def create_user(self, user_create: UserCreate, ctx: AppContext) -> UserInfo:
-        async def _create_user(session: AsyncSession) -> UserInfo:
-            logger.info(msg=f"Checking user creation data...", context=ctx)
-            if user_create.email is None:
-                logger.error(msg=f"Email is required", context=ctx)
-                raise BadRequestException(message="Email is required")
-            if user_create.password is None:
-                logger.error(msg=f"Password is required", context=ctx)
-                raise BadRequestException(message="Password is required")
-            if user_create.name is None:
-                logger.error(msg=f"Name is required", context=ctx)
-                raise BadRequestException(message="Name is required")
+    async def _validate_new_user(
+        self, user_create: UserCreate, ctx: AppContext, session: AsyncSession
+    ) -> None:
+        logger.info(msg=f"Checking user creation data...", context=ctx)
+        if user_create.email is None:
+            logger.error(msg=f"Email is required", context=ctx)
+            raise BadRequestException(message="Email is required")
+        if user_create.password is None:
+            logger.error(msg=f"Password is required", context=ctx)
+            raise BadRequestException(message="Password is required")
+        if user_create.name is None:
+            logger.error(msg=f"Name is required", context=ctx)
+            raise BadRequestException(message="Name is required")
 
-            logger.info(
-                msg=f"Checking if user with email {user_create.email} already exists...",
+        logger.info(
+            msg=f"Checking if user with email {user_create.email} already exists...",
+            context=ctx,
+        )
+
+        user_with_same_email = await self.repo.user_repo().get(
+            session=session, query=UserQuery(email=user_create.email), ctx=ctx
+        )
+
+        if user_with_same_email is not None:
+            logger.error(
+                msg=f"User with email {user_create.email} already exists",
                 context=ctx,
             )
+            raise BadRequestException(message="Email already exists")
 
-            user_with_same_email = await self.repo.user_repo().get(
-                session=session, query=UserQuery(email=user_create.email), ctx=ctx
-            )
+    async def _send_otp_mail(self, user: User, ctx: AppContext) -> None:
+        otp_code = generate_otp()
+        html = render_mail_html(
+            "send-otp.html",
+            name=user.name,
+            app_name=settings.APP_NAME,
+            action_url="https://example.com/onboarding",
+            subject="Welcome to Chronohub",
+            otp=otp_code,
+            expiry_minutes=10,
+            year=datetime.now().year,
+            base_url=settings.email_public_base_url,
+        )
+        request = SendMailRequest(
+            to=[user.email],
+            subject="Welcome to Chronohub - Verification Code",
+            body=f"Hi {user.name}, thanks for joining. Get started: https://example.com/onboarding",
+            html=html,
+        )
+        await asyncio.gather(
+            self.mail_service.send(request=request, ctx=ctx),
+            self.repo.user_repo().set_otp_code(
+                email=user.email, otp_code=otp_code, ctx=ctx
+            ),
+        )
 
-            if user_with_same_email is not None:
-                logger.error(
-                    msg=f"User with email {user_create.email} already exists",
+    async def create_user(self, user_create: UserCreate, ctx: AppContext) -> None:
+        async def _create_user(session: AsyncSession) -> None:
+            try:
+                await self._validate_new_user(user_create, ctx, session)
+
+                logger.info(msg=f"Hashing password...", context=ctx)
+                hash_password = bcrypt.hashpw(
+                    user_create.password.encode("utf-8"), salt
+                ).decode("utf-8")
+
+                logger.info(
+                    msg=f"Hasing password complete, creating user...", context=ctx
+                )
+                user_info = User(
+                    name=user_create.name,
+                    password=hash_password,
+                    email=user_create.email,
+                    status=UserStatus.PENDING,
+                )
+                await self.repo.user_repo().create_user(
+                    session=session, user_info=user_info
+                )
+
+                logger.info(
+                    msg=f"User created successfully, preparing to send OTP mail...",
                     context=ctx,
                 )
-                raise BadRequestException(message="Email already exists")
-
-            logger.info(msg=f"Hashing password...", context=ctx)
-            hash_password = bcrypt.hashpw(
-                user_create.password.encode("utf-8"), salt
-            ).decode("utf-8")
-
-            logger.info(msg=f"Hasing password complete, creating user...", context=ctx)
-            user_info = User(
-                name=user_create.name,
-                password=hash_password,
-                email=user_create.email,
-            )
-            await self.repo.user_repo().create_user(
-                session=session, user_info=user_info
-            )
-            logger.info(
-                msg=f"User created successfully, returning user info...", context=ctx
-            )
-            return user_info.view()
+                await self._send_otp_mail(user_info, ctx)
+                return
+            except Exception as e:
+                logger.error(msg=f"Create user service: Exception: {e}", context=ctx)
+                raise e
 
         return await self.repo.transaction_wrapper(_create_user)
 

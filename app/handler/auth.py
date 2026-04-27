@@ -174,9 +174,7 @@ class AuthHandler:
         return redir
 
     @exception_handler
-    async def register_user(
-        self, request: Request, user_create: UserCreate
-    ) -> UserInfo:
+    async def register_user(self, request: Request, user_create: UserCreate) -> None:
         """
         Create a new user account
 
@@ -191,15 +189,15 @@ class AuthHandler:
         """
         ctx = AppContext(trace_id=uuid4(), action=REGISTER_USER)
         logger.info(
-            msg=f"Starting Register User Endpoint: {request.url}; params: ${user_create}",
+            msg=f"Starting Register User Endpoint: {request.url};",
             context=ctx,
         )
-        res = await self.service.create_user(user_create, ctx=ctx)
+        await self.service.create_user(user_create, ctx=ctx)
         logger.info(
-            msg=f"Register User Endpoint Finishes {request.url}; params: ${user_create};",
+            msg=f"Register User Endpoint Finishes {request.url};",
             context=ctx,
         )
-        return res
+        return "Success"
 
     @exception_handler
     async def refresh_token(
