@@ -37,15 +37,19 @@ class App:
             pg_engine = create_pg_engine()
             redis_client = RedisClient()
             registry = Registry(pg_engine=pg_engine, redis_client=redis_client)
+            # ------------ External Service ------------
+            mail_service = MailService()
+
             # ------------ Service ------------
             user_service = UserService(repo=registry)
             group_service = GroupService(repo=registry)
             auth_service = AuthService(
-                repo=registry, group_service=group_service, user_service=user_service
+                repo=registry,
+                group_service=group_service,
+                user_service=user_service,
+                mail_service=mail_service,
             )
             event_service = EventService(repo=registry)
-            # ------------ External Service ------------
-            mail_service = MailService()
 
             AuthMiddleware.init(auth_service=auth_service)
             # ------------ Handler ------------

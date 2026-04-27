@@ -120,7 +120,7 @@ class AuthRouter:
             path="/register",
             endpoint=self.handler.register_user,
             methods=["POST"],
-            response_model=UserInfo,
+            response_model=str,
             status_code=status.HTTP_201_CREATED,
             summary="Create a new user",
             description="Create a new user account with email, name, and password. "
@@ -129,28 +129,7 @@ class AuthRouter:
             responses={
                 201: {
                     "description": "User created successfully",
-                    "content": {
-                        "application/json": {
-                            "example": {
-                                "id": "550e8400-e29b-41d4-a716-446655440000",
-                                "name": "John Doe",
-                                "email": "john@example.com",
-                                "status": "active",
-                                "created_at": "2026-01-25T10:30:00Z",
-                                "updated_at": "2026-01-25T10:30:00Z",
-                                "image_url": None,
-                                "owned_groups": [
-                                    {
-                                        "id": "550e8400-e29b-41d4-a716-446655440000",
-                                        "name": "Group 1",
-                                        "created_at": "2026-01-25T10:30:00Z",
-                                        "updated_at": "2026-01-25T10:30:00Z",
-                                        "members": [],
-                                    }
-                                ],
-                            }
-                        }
-                    },
+                    "content": {"application/json": {"example": "Success"}},
                 },
                 400: {
                     "description": "Bad request - Invalid input data or email already exists",
