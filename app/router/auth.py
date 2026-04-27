@@ -225,3 +225,17 @@ class AuthRouter:
             description="Logout a user",
             response_description="The logged out user information",
         )
+
+        self.router.add_api_route(
+            path="/validate-otp",
+            endpoint=self.handler.validate_otp,
+            methods=["POST"],
+            response_class=RedirectResponse,
+            status_code=status.HTTP_302_FOUND,
+            summary="Validate OTP",
+            description="Validate OTP based on the OTP and email",
+            responses={
+                302: {"description": "Redirect to frontend with session cookies set"},
+                400: {"description": "Invalid OTP or email"},
+            },
+        )

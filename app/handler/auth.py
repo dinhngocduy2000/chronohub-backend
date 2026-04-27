@@ -13,6 +13,7 @@ from app.common.enum.context_actions import (
     REGISTER_USER,
     SWITCH_CURRENT_USER_GROUP,
     TRACK_SESSION,
+    VALIDATE_OTP,
 )
 from app.common.exceptions import BadRequestException, UnauthorizedException
 from app.common.exceptions.decorator import exception_handler
@@ -30,6 +31,7 @@ from app.common.schemas.user import (
     UserInfo,
     UserLogin,
     UserLoginResponse,
+    ValidateOTPRequest,
 )
 from app.services.auth import AuthService
 from app.core.config import settings
@@ -307,3 +309,15 @@ class AuthHandler:
         ctx = AppContext(trace_id=uuid4(), action=LOGOUT)
         await self.service.logout(ctx=ctx, response=response, request=request)
         return "Success"
+
+    @exception_handler
+    async def validate_otp(
+        self, request: Request, validate_otp_request: ValidateOTPRequest
+    ) -> RedirectResponse:
+        ctx = AppContext(trace_id=uuid4(), action=VALIDATE_OTP)
+        logger.info(msg=f"Starting Validate OTP Endpoint: {request.url};", context=ctx)
+        await self.service.validate_otp(validate_otp_request, ctx=ctx)
+        logger.info(msg=f"Validate OTP Endpoint Finishes {request.url};", context=ctx)
+        return RedirectResponse(
+            url=settings.GOOGLE_FRONTEND_REDIRECT_URI, status_code=302
+        )
