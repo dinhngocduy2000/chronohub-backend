@@ -106,7 +106,12 @@ class AuthService:
 
     def _generate_access_token(self, user: User) -> str:
         current_time = datetime.now(timezone.utc)
-        jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
+        jwt_payload = {
+            "iat": current_time,
+            "id": str(user.id),
+            "email": user.email,
+            "active_group_id": user.active_group_id,
+        }
 
         # access token
         jwt_payload["type"] = "access"
@@ -244,7 +249,7 @@ class AuthService:
                     msg=f"User created successfully, preparing to send OTP mail...",
                     context=ctx,
                 )
-                await self._send_otp_mail(user_info, ctx)
+                asyncio.create_task(self._send_otp_mail(user_info, ctx))
                 return
             except Exception as e:
                 logger.error(msg=f"Create user service: Exception: {e}", context=ctx)
@@ -417,17 +422,23 @@ class AuthService:
     ) -> None:
         async def _validate_otp(session: AsyncSession) -> Optional[bool]:
             try:
+                hash_otp_request = hashlib.sha256(
+                    otp_request.otp.encode("utf-8")
+                ).hexdigest()
+
                 user, cache_otp = await asyncio.gather(
                     self.repo.user_repo().get(
                         session=session,
                         query=UserQuery(email=otp_request.email),
                         ctx=ctx,
                     ),
-                    self.repo.user_repo().get_otp_code(otp_request, ctx),
+                    self.repo.user_repo().get_otp_code(
+                        ValidateOTPRequest(
+                            otp=hash_otp_request, email=otp_request.email
+                        ),
+                        ctx,
+                    ),
                 )
-                hash_otp_request = hashlib.sha256(
-                    otp_request.otp.encode("utf-8")
-                ).hexdigest()
 
                 if user is None:
                     logger.error(msg=f"User not found", context=ctx)

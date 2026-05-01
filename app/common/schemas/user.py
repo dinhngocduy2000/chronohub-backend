@@ -56,6 +56,7 @@ class Credential(BaseModel):
     # role: Role
     is_pending: Optional[bool] = None
     exp_time: Optional[datetime] = None
+    active_group_id: Optional[UUID] = None
 
 
 class UserUpdate(BaseModel):

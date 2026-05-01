@@ -56,7 +56,7 @@ class GroupService:
     ) -> None:
         logger.info(msg=f"Credential is pending: {credential.is_pending}", context=ctx)
 
-        if credential.is_pending:
+        if credential.is_pending or credential.active_group_id is None:
             await self.repo.user_repo().update_user(
                 session=session,
                 user_id=credential.id,
