@@ -313,11 +313,13 @@ class AuthHandler:
     @exception_handler
     async def validate_otp(
         self, request: Request, validate_otp_request: ValidateOTPRequest
-    ) -> RedirectResponse:
+    ) -> BaseResponse[str]:
         ctx = AppContext(trace_id=uuid4(), action=VALIDATE_OTP)
         logger.info(msg=f"Starting Validate OTP Endpoint: {request.url};", context=ctx)
         await self.service.validate_otp(validate_otp_request, ctx=ctx)
         logger.info(msg=f"Validate OTP Endpoint Finishes {request.url};", context=ctx)
-        return RedirectResponse(
-            url=settings.GOOGLE_FRONTEND_REDIRECT_URI, status_code=302
+        return BaseResponse(
+            data="Success",
+            message="Success",
+            statusCode=200,
         )

@@ -230,12 +230,19 @@ class AuthRouter:
             path="/validate-otp",
             endpoint=self.handler.validate_otp,
             methods=["POST"],
-            response_class=RedirectResponse,
-            status_code=status.HTTP_302_FOUND,
+            response_model=BaseResponse[str],
+            status_code=status.HTTP_200_OK,
             summary="Validate OTP",
             description="Validate OTP based on the OTP and email",
             responses={
-                302: {"description": "Redirect to frontend with session cookies set"},
+                200: {
+                    "description": "OTP validated successfully",
+                    "content": {
+                        "application/json": {
+                            "example": {"detail": "Successfully validated OTP"}
+                        }
+                    },
+                },
                 400: {"description": "Invalid OTP or email"},
             },
         )

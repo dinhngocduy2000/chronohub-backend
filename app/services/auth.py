@@ -23,7 +23,6 @@ from app.common.schemas.user import (
     SwitchGroupRequest,
     UserCreate,
     UserInfo,
-    UserJoinOption,
     UserLogin,
     UserLoginResponse,
     UserQuery,
@@ -107,7 +106,12 @@ class AuthService:
 
     def _generate_access_token(self, user: User) -> str:
         current_time = datetime.now(timezone.utc)
-        jwt_payload = {"iat": current_time, "id": str(user.id), "email": user.email}
+        jwt_payload = {
+            "iat": current_time,
+            "id": str(user.id),
+            "email": user.email,
+            "active_group_id": user.active_group_id,
+        }
 
         # access token
         jwt_payload["type"] = "access"
@@ -193,6 +197,7 @@ class AuthService:
 
     async def _send_otp_mail(self, user: User, ctx: AppContext) -> None:
         otp_code = generate_otp()
+        hash_otp_code = hashlib.sha256(otp_code.encode("utf-8")).hexdigest()
         html = render_mail_html(
             "send-otp.html",
             name=user.name,
@@ -213,7 +218,7 @@ class AuthService:
         await asyncio.gather(
             self.mail_service.send(request=request, ctx=ctx),
             self.repo.user_repo().set_otp_code(
-                email=user.email, otp_code=otp_code, ctx=ctx
+                email=user.email, otp_code=hash_otp_code, ctx=ctx
             ),
         )
 
@@ -244,7 +249,7 @@ class AuthService:
                     msg=f"User created successfully, preparing to send OTP mail...",
                     context=ctx,
                 )
-                await self._send_otp_mail(user_info, ctx)
+                asyncio.create_task(self._send_otp_mail(user_info, ctx))
                 return
             except Exception as e:
                 logger.error(msg=f"Create user service: Exception: {e}", context=ctx)
@@ -417,14 +422,24 @@ class AuthService:
     ) -> None:
         async def _validate_otp(session: AsyncSession) -> Optional[bool]:
             try:
+                hash_otp_request = hashlib.sha256(
+                    otp_request.otp.encode("utf-8")
+                ).hexdigest()
+
                 user, cache_otp = await asyncio.gather(
                     self.repo.user_repo().get(
                         session=session,
                         query=UserQuery(email=otp_request.email),
                         ctx=ctx,
                     ),
-                    self.repo.user_repo().get_otp_code(otp_request, ctx),
+                    self.repo.user_repo().get_otp_code(
+                        ValidateOTPRequest(
+                            otp=hash_otp_request, email=otp_request.email
+                        ),
+                        ctx,
+                    ),
                 )
+
                 if user is None:
                     logger.error(msg=f"User not found", context=ctx)
                     raise BadRequestException(message="User not found")
@@ -432,11 +447,16 @@ class AuthService:
                 if cache_otp is None:
                     logger.error(msg=f"OTP not found in cache", context=ctx)
                     raise BadRequestException(message="Invalid OTP")
-                if cache_otp != otp_request.otp:
+                if cache_otp != hash_otp_request:
                     logger.error(msg=f"Invalid OTP", context=ctx)
                     raise BadRequestException(message="Invalid OTP")
                 await asyncio.gather(
-                    self.repo.user_repo().delete_otp_code(otp_request, ctx),
+                    self.repo.user_repo().delete_otp_code(
+                        ValidateOTPRequest(
+                            otp=hash_otp_request, email=otp_request.email
+                        ),
+                        ctx,
+                    ),
                     self.repo.user_repo().update_user(
                         session=session,
                         user_id=user.id,
