@@ -2,9 +2,12 @@ from pathlib import Path
 from typing import Callable
 
 from fastapi import FastAPI
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from mangum import Mangum
+from starlette.requests import Request
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.core.config import settings
 from fastapi.middleware.cors import CORSMiddleware
@@ -101,12 +104,47 @@ class App:
 
     def __init__(self) -> None:
         self.application = FastAPI(**settings.fastapi_kwargs)
-        _public_static = Path(__file__).resolve().parents[2] / "static" / "public"
+        _repo_root = Path(__file__).resolve().parents[2]
+        _public_static = _repo_root / "static" / "public"
         _public_static.mkdir(parents=True, exist_ok=True)
+        _swagger_static = _repo_root / "static" / "swagger-ui"
+        _swagger_js = _swagger_static / "swagger-ui-bundle.js"
+        _swagger_css = _swagger_static / "swagger-ui.css"
+        _swagger_local = _swagger_js.is_file() and _swagger_css.is_file()
+        if _swagger_local:
+            self.application.mount(
+                "/swagger-ui",
+                StaticFiles(directory=str(_swagger_static)),
+                name="swagger_ui",
+            )
         self.application.mount(
             "/public",
             StaticFiles(directory=str(_public_static)),
             name="public",
+        )
+
+        async def swagger_ui_html(request: Request) -> HTMLResponse:
+            root_path = request.scope.get("root_path", "").rstrip("/")
+            openapi_url = root_path + f"{settings.API_V1_PREFIX}/openapi.json"
+            if _swagger_local:
+                js_url = f"{root_path}/swagger-ui/swagger-ui-bundle.js"
+                css_url = f"{root_path}/swagger-ui/swagger-ui.css"
+            else:
+                base = "https://unpkg.com/swagger-ui-dist@5.11.0"
+                js_url = f"{base}/swagger-ui-bundle.js"
+                css_url = f"{base}/swagger-ui.css"
+            return get_swagger_ui_html(
+                openapi_url=openapi_url,
+                title=f"{settings.APP_NAME} - Swagger UI",
+                swagger_js_url=js_url,
+                swagger_css_url=css_url,
+            )
+
+        self.application.add_api_route(
+            f"{settings.API_V1_PREFIX}/docs",
+            swagger_ui_html,
+            methods=["GET"],
+            include_in_schema=False,
         )
         self.application.add_middleware(
             CORSMiddleware,
