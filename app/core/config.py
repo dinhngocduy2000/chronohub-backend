@@ -87,7 +87,8 @@ class Settings(BaseAppSettings):
             "title": settings.APP_NAME,
             "version": settings.APP_VERSION,
             "openapi_url": f"{settings.API_V1_PREFIX}/openapi.json",
-            "docs_url": f"{settings.API_V1_PREFIX}/docs",
+            # Served in app/cmd/main.py so JS/CSS can use local files or a non-jsDelivr CDN.
+            "docs_url": None,
             "redoc_url": f"{settings.API_V1_PREFIX}/redoc",
         }
 
