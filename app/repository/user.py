@@ -131,7 +131,7 @@ class UserRepository:
     async def set_otp_code(self, email: str, otp_code: str, ctx: AppContext) -> None:
         try:
             await self._redis_client.set(
-                f"{otp_code}:{email}",
+                f"{settings.CACHE_OTP_CODE}:{email}",
                 otp_code,
                 expire=settings.OTP_CODE_EXPIRE_SECONDS,
             )
@@ -144,7 +144,7 @@ class UserRepository:
     ) -> str:
         try:
             return await self._redis_client.get(
-                f"{otp_request.otp}:{otp_request.email}",
+                f"{settings.CACHE_OTP_CODE}:{otp_request.email}",
             )
         except Exception as e:
             logger.error(msg=f"Get OTP code repository: Exception: {e}", context=ctx)
@@ -155,7 +155,7 @@ class UserRepository:
     ) -> None:
         try:
             await self._redis_client.delete(
-                f"{otp_request.otp}:{otp_request.email}",
+                f"{settings.CACHE_OTP_CODE}:{otp_request.email}",
             )
         except Exception as e:
             logger.error(msg=f"Delete OTP code repository: Exception: {e}", context=ctx)

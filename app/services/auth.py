@@ -110,7 +110,7 @@ class AuthService:
             "iat": current_time,
             "id": str(user.id),
             "email": user.email,
-            "active_group_id": user.active_group_id,
+            "active_group_id": str(user.active_group_id),
         }
 
         # access token
@@ -542,62 +542,44 @@ class AuthService:
 
         return await self.repo.transaction_wrapper(_refresh_token)
 
-    async def get_current_user(self, user_id: UUID, ctx: AppContext) -> UserInfo:
-        async def _get_current_user(session: AsyncSession) -> UserInfo:
-            logger.info(msg=f"Getting user by id {user_id}...", context=ctx)
-            user = await self.repo.user_repo().get(
-                session=session,
-                query=UserQuery(id=user_id),
-                ctx=ctx,
-            )
-            if user is None:
-                logger.error(msg=f"User with id {user_id} not found", context=ctx)
-                raise BadRequestException(message="User not found")
-            logger.info(
-                msg=f"User found with id {user_id}: {user.__dict__}", context=ctx
-            )
+    async def get_current_user(
+        self, user_id: UUID, ctx: AppContext, credential: Credential
+    ) -> UserInfo:
 
-            return user.view()
+        logger.info(msg=f"Getting user by id {credential.id}...", context=ctx)
+        group_info: Optional[GroupInfo] = None
 
-        return await self.repo.transaction_wrapper(_get_current_user)
-
-    async def switch_current_user_group(
-        self, input: SwitchGroupRequest, ctx: AppContext, credential: Credential
-    ) -> None:
-        async def _switch_current_user_group(session: AsyncSession) -> None:
-            try:
-
-                group = await self.repo.group_repo().get_group(
-                    session=session,
-                    query=GroupQuery(id=input.group_id),
-                    ctx=ctx,
-                    options=GroupJoinOption(include_members=True),
-                )
-
-                if credential.id not in [member.user.id for member in group.members]:
-                    logger.error(msg=f"User is not a member of the group", context=ctx)
-                    raise BadRequestException(
-                        message="User is not a member of the group"
+        if credential.active_group_id is not None:
+            logger.info(msg="User already has an active group", context=ctx)
+            user, group = await asyncio.gather(
+                self.repo.transaction_wrapper(
+                    lambda s: self.repo.user_repo().get(
+                        session=s,
+                        query=UserQuery(id=user_id),
+                        ctx=ctx,
                     )
-
-                if group is None:
-                    logger.error(
-                        msg=f"Group with id {input.group_id} not found", context=ctx
+                ),
+                self.repo.transaction_wrapper(
+                    lambda s: self.repo.group_repo().get_group(
+                        session=s,
+                        query=GroupQuery(id=credential.active_group_id),
+                        ctx=ctx,
                     )
-                    raise BadRequestException(message="Group not found")
+                ),
+            )
+            group_info = group.view() if group is not None else None
 
-                await self.repo.user_repo().update_user(
-                    session=session,
-                    user_id=ctx.actor,
-                    user_update=UserUpdate(active_group_id=input.group_id),
+        else:
+            logger.info(msg="User does not have an active group", context=ctx)
+            user = await self.repo.transaction_wrapper(
+                lambda s: self.repo.user_repo().get(
+                    session=s,
+                    query=UserQuery(id=user_id),
                     ctx=ctx,
                 )
-                return
-            except Exception as e:
-                logger.error(msg=f"Switch group service: Exception: {e}", context=ctx)
-                raise e
+            )
 
-        return await self.repo.transaction_wrapper(_switch_current_user_group)
+        return user.view(group=group_info)
 
     async def logout(
         self, ctx: AppContext, response: Response, request: Request

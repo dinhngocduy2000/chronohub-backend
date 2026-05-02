@@ -12,7 +12,7 @@ from app.common.schemas.group import (
     GroupJoinOption,
     GroupQuery,
 )
-from app.common.schemas.user import Credential, UserUpdate
+from app.common.schemas.user import Credential, SwitchGroupRequest, UserUpdate
 from app.models.group import Group
 from app.models.group_members import GroupMembers
 from app.repository.registry import Registry
@@ -126,6 +126,7 @@ class GroupService:
     ) -> List[HashMapResponse]:
         async def _list_group_key_value(session: AsyncSession) -> List[Dict[UUID, str]]:
             try:
+
                 query = GroupQuery(owner_id=credential.id)
                 groups = await self.repo.group_repo().list_group_map(
                     session=session, query=query, ctx=ctx
@@ -168,3 +169,41 @@ class GroupService:
                 raise e
 
         return await self.repo.transaction_wrapper(_get_group)
+
+    async def switch_current_user_active_group(
+        self, input: SwitchGroupRequest, ctx: AppContext, credential: Credential
+    ) -> None:
+        async def _switch_current_user_active_group(session: AsyncSession) -> None:
+            try:
+
+                group = await self.repo.group_repo().get_group(
+                    session=session,
+                    query=GroupQuery(id=input.group_id),
+                    ctx=ctx,
+                    options=GroupJoinOption(include_members=True),
+                )
+
+                if credential.id not in [member.user.id for member in group.members]:
+                    logger.error(msg=f"User is not a member of the group", context=ctx)
+                    raise BadRequestException(
+                        message="User is not a member of the group"
+                    )
+
+                if group is None:
+                    logger.error(
+                        msg=f"Group with id {input.group_id} not found", context=ctx
+                    )
+                    raise BadRequestException(message="Group not found")
+
+                await self.repo.user_repo().update_user(
+                    session=session,
+                    user_id=ctx.actor,
+                    user_update=UserUpdate(active_group_id=input.group_id),
+                    ctx=ctx,
+                )
+                return
+            except Exception as e:
+                logger.error(msg=f"Switch group service: Exception: {e}", context=ctx)
+                raise e
+
+        return await self.repo.transaction_wrapper(_switch_current_user_active_group)

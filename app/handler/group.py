@@ -1,18 +1,22 @@
 from typing import Dict, List
 from uuid import UUID, uuid4
-from fastapi import Depends, Path
+from fastapi import Depends, Path, Request
 from app.common.context import AppContext
 from app.common.enum.context_actions import (
     CREATE_GROUP,
     GET_GROUP_BY_ID,
     LIST_GROUP_KEY_VALUE,
+    SWITCH_CURRENT_USER_GROUP,
 )
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
+from app.common.middleware.logger import Logger
 from app.common.schemas.common import BaseResponse, HashMapResponse
 from app.common.schemas.group import GroupCreateDTO, GroupInfo
-from app.common.schemas.user import Credential
+from app.common.schemas.user import Credential, SwitchGroupRequest
 from app.services.group import GroupService
+
+logger = Logger()
 
 
 class GroupHandler:
@@ -54,7 +58,7 @@ class GroupHandler:
         """
         ctx = AppContext(trace_id=uuid4(), action=LIST_GROUP_KEY_VALUE)
         groups = await self.service.list_group_key_value(ctx=ctx, credential=credential)
-        return BaseResponse(
+        return BaseResponse[List[HashMapResponse]](
             data=groups,
             message="Success",
             statusCode=200,
@@ -73,8 +77,29 @@ class GroupHandler:
         group = await self.service.get_group(
             group_id=group_id, ctx=ctx, credential=credential
         )
-        return BaseResponse(
+        return BaseResponse[GroupInfo](
             data=group.view(),
             message="Success",
             statusCode=200,
         )
+
+    @exception_handler
+    async def switch_current_user_group(
+        self,
+        request: Request,
+        input: SwitchGroupRequest,
+        credential: Credential = Depends(AuthMiddleware.auth_middleware),
+    ) -> str:
+        ctx = AppContext(
+            trace_id=uuid4(), action=SWITCH_CURRENT_USER_GROUP, actor=credential.id
+        )
+        logger.info(
+            msg=f"Starting Switch Current User Group Endpoint: {request.url}; params: ${input}",
+            context=ctx,
+        )
+        await self.service.switch_current_user_active_group(input, ctx=ctx)
+        logger.info(
+            msg=f"Switch Current User Group Endpoint Finishes {request.url}; params: ${input};",
+            context=ctx,
+        )
+        return "Success"

@@ -68,7 +68,7 @@ class GroupRepository:
             stmt = select(Group)
             stmt = self._prepare_query(query, stmt, options)
             result = await session.execute(stmt)
-            group = result.unique().scalar_one_or_none()
+            group = result.unique().scalars().first()
             return group if group else None
         except Exception as e:
             logger.error(msg=f"Get group repository: Exception: {e}", context=ctx)

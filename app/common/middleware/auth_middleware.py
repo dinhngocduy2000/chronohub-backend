@@ -1,6 +1,6 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import hashlib
-from typing import Tuple
+from typing import Optional
 import uuid
 from fastapi import HTTPException, Request, status
 import jwt
@@ -23,10 +23,9 @@ class AuthMiddleware:
         cls.auth_service = auth_service
 
     @classmethod
-    async def _validate_cookie_tokens(
-        cls, request: Request, ctx: AppContext
-    ) -> Tuple[str, str, str]:
-        access_token = request.cookies.get("access_token")
+    async def _validate_cached_token(
+        cls, access_token: Optional[str], ctx: AppContext
+    ) -> None:
         if access_token is None:
             logger.error(msg=f"Access token not found in cookies...", context=ctx)
             raise HTTPException(
@@ -43,7 +42,8 @@ class AuthMiddleware:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
             )
 
-        logger.info(msg=f"Token found, decoding token...", context=ctx)
+    @classmethod
+    def _validate_decoded_token(cls, access_token: str, ctx: AppContext) -> dict:
         decoded_token = jwt.decode(
             access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
@@ -57,39 +57,54 @@ class AuthMiddleware:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User is not active or deleted",
             )
+        return decoded_token
 
+    @classmethod
+    def _generate_credential(cls, decoded_token: dict) -> Credential:
         exp_time = decoded_token["exp"]
         user_id = uuid.UUID(decoded_token["id"])
         user_email = decoded_token["email"]
         is_pending = decoded_token["is_pending"]
-        logger.info(
-            msg=f"Token decoded successfully with user id {user_id}", context=ctx
-        )
-        if datetime.now(timezone.utc) > datetime.fromtimestamp(exp_time, timezone.utc):
-            logger.error(msg=f"Token expired", context=ctx)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
-            )
+        active_group_id = decoded_token["active_group_id"]
 
         user_status = decoded_token["status"]
-        return user_id, user_email, exp_time, is_pending, user_status
-
-    @classmethod
-    async def auth_middleware(cls, request: Request) -> Credential:
-        ctx = AppContext(trace_id=uuid.uuid4(), action=AUTHENTICATE_USER)
-        logger.info(msg=f"Getting token from cookies...", context=ctx)
-
-        user_id, user_email, exp_time, is_pending, user_status = (
-            await cls._validate_cookie_tokens(request, ctx)
-        )
-        credential: Credential = Credential(
+        return Credential(
             id=user_id,
             email=user_email,
             status=user_status,
             is_pending=is_pending,
             exp_time=exp_time,
+            active_group_id=active_group_id,
         )
 
+    @classmethod
+    async def _validate_cookie_tokens(
+        cls, request: Request, ctx: AppContext
+    ) -> Credential:
+        logger.info(msg=f"Validating tokens in cookies and cache...", context=ctx)
+        access_token = request.cookies.get("access_token")
+        await cls._validate_cached_token(access_token, ctx)
+
+        logger.info(msg=f"Token found, decoding token...", context=ctx)
+
+        decoded_token = cls._validate_decoded_token(access_token=access_token, ctx=ctx)
+
+        logger.info(msg=f"Token decoded successfully, checking expiration", context=ctx)
+        if datetime.now(timezone.utc) > datetime.fromtimestamp(
+            decoded_token["exp"], timezone.utc
+        ):
+            logger.error(msg=f"Token expired", context=ctx)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+            )
+        logger.info(msg=f"Token not expired, generating credential...", context=ctx)
+        credential: Credential = cls._generate_credential(decoded_token=decoded_token)
+        return credential
+
+    @classmethod
+    async def auth_middleware(cls, request: Request) -> Credential:
+        ctx = AppContext(trace_id=uuid.uuid4(), action=AUTHENTICATE_USER)
+        credential: Credential = await cls._validate_cookie_tokens(request, ctx)
         logger.info(msg=f"Credential authorized", context=ctx)
 
         return credential
