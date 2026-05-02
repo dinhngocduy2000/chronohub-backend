@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 from fastapi import Depends, Query, Request, Response
@@ -11,7 +11,6 @@ from app.common.enum.context_actions import (
     LOGOUT,
     REFRESH_TOKEN,
     REGISTER_USER,
-    SWITCH_CURRENT_USER_GROUP,
     TRACK_SESSION,
     VALIDATE_OTP,
 )
@@ -23,10 +22,8 @@ from app.common.schemas.common import BaseResponse
 from app.common.schemas.user import (
     Credential,
     GoogleAuthUrlResponse,
-    GoogleLoginRequest,
     GoogleLoginResponse,
     RefreshTokenRequest,
-    SwitchGroupRequest,
     UserCreate,
     UserInfo,
     UserLogin,
@@ -257,37 +254,18 @@ class AuthHandler:
             msg=f"Starting Get Current User Profile Endpoint: {request.url};",
             context=ctx,
         )
-        user_info = await self.service.get_current_user(credential.id, ctx=ctx)
+        user_info = await self.service.get_current_user(
+            credential.id, ctx=ctx, credential=credential
+        )
         logger.info(
             msg=f"User profile retrieved successfully, returning user info...",
             context=ctx,
         )
-        return BaseResponse(
+        return BaseResponse[UserInfo](
             data=user_info,
             message="Success",
             statusCode=200,
         )
-
-    @exception_handler
-    async def switch_current_user_group(
-        self,
-        request: Request,
-        input: SwitchGroupRequest,
-        credential: Credential = Depends(AuthMiddleware.auth_middleware),
-    ) -> str:
-        ctx = AppContext(
-            trace_id=uuid4(), action=SWITCH_CURRENT_USER_GROUP, actor=credential.id
-        )
-        logger.info(
-            msg=f"Starting Switch Current User Group Endpoint: {request.url}; params: ${input}",
-            context=ctx,
-        )
-        await self.service.switch_current_user_group(input, ctx=ctx)
-        logger.info(
-            msg=f"Switch Current User Group Endpoint Finishes {request.url}; params: ${input};",
-            context=ctx,
-        )
-        return "Success"
 
     @exception_handler
     async def track_session(
@@ -318,7 +296,7 @@ class AuthHandler:
         logger.info(msg=f"Starting Validate OTP Endpoint: {request.url};", context=ctx)
         await self.service.validate_otp(validate_otp_request, ctx=ctx)
         logger.info(msg=f"Validate OTP Endpoint Finishes {request.url};", context=ctx)
-        return BaseResponse(
+        return BaseResponse[str](
             data="Success",
             message="Success",
             statusCode=200,

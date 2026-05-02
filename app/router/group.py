@@ -76,3 +76,14 @@ class GroupRouter:
             description="Get a group by its ID",
             response_description="The group information",
         )
+
+        self.router.add_api_route(
+            path="/switch",
+            endpoint=self.handler.switch_current_user_group,
+            methods=["PUT"],
+            response_model=str,
+            status_code=status.HTTP_200_OK,
+            summary="Switch current user group",
+            description="Switch current user group based on the group id",
+            response_description="The switched group information",
+        )

@@ -1,10 +1,12 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import Enum, String, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID as PostgreSQL_UUID
 from app.common.enum.user_status import UserStatus
+from app.common.schemas.group import GroupInfo
+from app.common.schemas.common import HashMapResponse
 from app.common.schemas.user import UserInfo
 from app.core.database import Base
 from sqlalchemy.orm import (
@@ -42,7 +44,7 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    groups: Mapped[List["GroupMembers"]] = relationship(  # type: ignore
+    group_members: Mapped[List["GroupMembers"]] = relationship(  # type: ignore
         "GroupMembers", back_populates="user"
     )
 
@@ -52,7 +54,7 @@ class User(Base):
 
     comments: Mapped[List["Comment"]] = relationship("Comment", back_populates="owner")  # type: ignore
 
-    def view(self) -> UserInfo:
+    def view(self, group: Optional[GroupInfo]) -> UserInfo:
         return UserInfo(
             id=self.id,
             name=self.name,
@@ -62,4 +64,9 @@ class User(Base):
             updated_at=self.updated_at,
             image_url=self.image_url,
             group_id=self.active_group_id,
+            group=(
+                HashMapResponse(value=group.id, label=group.name)
+                if group is not None
+                else None
+            ),
         )

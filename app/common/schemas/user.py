@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.common.enum.user_status import UserStatus
 from app.common.exceptions import BadRequestException
-from app.common.schemas.common import BaseResponse
+from app.common.schemas.common import BaseResponse, HashMapResponse
 from app.common.schemas.group import GroupInfo
 
 
@@ -23,6 +23,7 @@ class UserInfo(UserBase):
     updated_at: datetime = Field(None, description="User's updated at")
     image_url: Optional[str] = Field(None, description="User's image url")
     group_id: Optional[UUID] = Field(None, description="User's group id")
+    group: Optional[HashMapResponse] = Field(None, description="User's group")
 
 
 class UserQuery(BaseModel):

@@ -51,7 +51,7 @@ class Settings(BaseAppSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = ""
     SMTP_USE_TLS: bool = True
-    OTP_CODE_EXPIRE_SECONDS: int = 60 * 10  # 10 minutes
+    OTP_CODE_EXPIRE_SECONDS: int = 600  # 10 minutes
 
     # Cache / Redis
     REDIS_HOST: str = "localhost"
