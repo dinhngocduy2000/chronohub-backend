@@ -34,6 +34,10 @@ class GroupRepository:
             stmt = stmt.where(Group.name == query.name)
         if query.owner_id is not None:
             stmt = stmt.where(Group.owner_id == query.owner_id)
+        if query.members is not None and len(query.members) > 0:
+            stmt = stmt.where(
+                Group.members.any(GroupMembers.member_id.in_(query.members))
+            )
         if options is not None:
             if options.include_members:
                 stmt = stmt.options(

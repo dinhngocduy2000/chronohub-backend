@@ -35,6 +35,7 @@ class GroupQuery(BaseModel):
     name: Optional[str] = Field(None, description="Group's name")
     id: Optional[UUID] = Field(None, description="Group's id")
     owner_id: Optional[UUID] = Field(None, description="Group's owner id")
+    members: Optional[List[UUID]] = Field(default=[], description="Group's members")
 
 
 class GroupUpdate(BaseModel):

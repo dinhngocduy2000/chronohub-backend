@@ -126,8 +126,7 @@ class GroupService:
     ) -> List[HashMapResponse]:
         async def _list_group_key_value(session: AsyncSession) -> List[Dict[UUID, str]]:
             try:
-
-                query = GroupQuery(owner_id=credential.id)
+                query = GroupQuery(members=[credential.id])
                 groups = await self.repo.group_repo().list_group_map(
                     session=session, query=query, ctx=ctx
                 )
