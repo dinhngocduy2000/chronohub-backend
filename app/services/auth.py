@@ -542,44 +542,36 @@ class AuthService:
 
         return await self.repo.transaction_wrapper(_refresh_token)
 
-    async def get_current_user(
-        self, user_id: UUID, ctx: AppContext, credential: Credential
-    ) -> UserInfo:
+    async def get_current_user(self, user_id: UUID, ctx: AppContext) -> UserInfo:
 
-        logger.info(msg=f"Getting user by id {credential.id}...", context=ctx)
-        group_info: Optional[GroupInfo] = None
+        async def _get_current_user(session: AsyncSession) -> UserInfo:
+            try:
+                logger.info(msg=f"Getting user by id {user_id}...", context=ctx)
+                group_info: Optional[GroupInfo] = None
 
-        if credential.active_group_id is not None:
-            logger.info(msg="User already has an active group", context=ctx)
-            user, group = await asyncio.gather(
-                self.repo.transaction_wrapper(
-                    lambda s: self.repo.user_repo().get(
-                        session=s,
-                        query=UserQuery(id=user_id),
-                        ctx=ctx,
-                    )
-                ),
-                self.repo.transaction_wrapper(
-                    lambda s: self.repo.group_repo().get_group(
-                        session=s,
-                        query=GroupQuery(id=credential.active_group_id),
-                        ctx=ctx,
-                    )
-                ),
-            )
-            group_info = group.view() if group is not None else None
-
-        else:
-            logger.info(msg="User does not have an active group", context=ctx)
-            user = await self.repo.transaction_wrapper(
-                lambda s: self.repo.user_repo().get(
-                    session=s,
+                user = await self.repo.user_repo().get(
+                    session=session,
                     query=UserQuery(id=user_id),
                     ctx=ctx,
                 )
-            )
 
-        return user.view(group=group_info)
+                if user.active_group_id is not None:
+                    logger.info(msg="User already has an active group", context=ctx)
+                    group = await self.repo.group_repo().get_group(
+                        session=session,
+                        query=GroupQuery(id=user.active_group_id),
+                        ctx=ctx,
+                    )
+                    group_info = group.view() if group is not None else None
+
+                return user.view(group=group_info)
+            except Exception as e:
+                logger.error(
+                    msg=f"Get current user service: Exception: {e}", context=ctx
+                )
+            raise e
+
+        return await self.repo.transaction_wrapper(_get_current_user)
 
     async def logout(
         self, ctx: AppContext, response: Response, request: Request

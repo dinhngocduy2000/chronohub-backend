@@ -254,9 +254,7 @@ class AuthHandler:
             msg=f"Starting Get Current User Profile Endpoint: {request.url};",
             context=ctx,
         )
-        user_info = await self.service.get_current_user(
-            credential.id, ctx=ctx, credential=credential
-        )
+        user_info = await self.service.get_current_user(credential.id, ctx=ctx)
         logger.info(
             msg=f"User profile retrieved successfully, returning user info...",
             context=ctx,
