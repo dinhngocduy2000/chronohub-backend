@@ -97,7 +97,9 @@ class GroupHandler:
             msg=f"Starting Switch Current User Group Endpoint: {request.url}; params: ${input}",
             context=ctx,
         )
-        await self.service.switch_current_user_active_group(input, ctx=ctx)
+        await self.service.switch_current_user_active_group(
+            input, ctx=ctx, credential=credential
+        )
         logger.info(
             msg=f"Switch Current User Group Endpoint Finishes {request.url}; params: ${input};",
             context=ctx,
