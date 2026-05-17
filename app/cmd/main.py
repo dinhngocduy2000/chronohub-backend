@@ -8,10 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from mangum import Mangum
 from starlette.requests import Request
+from app.common.middleware import register_middleware
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.core.config import settings
-from fastapi.middleware.cors import CORSMiddleware
-
 from app.core.database import create_pg_engine
 from app.external.redis.redis import RedisClient
 from app.handler.auth import AuthHandler
@@ -146,13 +145,7 @@ class App:
             methods=["GET"],
             include_in_schema=False,
         )
-        self.application.add_middleware(
-            CORSMiddleware,
-            allow_origins=["http://localhost:3000"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+        register_middleware(self.application)
         self.application.add_event_handler("startup", self.on_init_app())
         self.application.add_event_handler("shutdown", self.on_terminate_app())
 
