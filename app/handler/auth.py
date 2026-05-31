@@ -14,6 +14,7 @@ from app.common.enum.context_actions import (
     TRACK_SESSION,
     VALIDATE_OTP,
 )
+from app.common.enum.sso_providers import SSO_PROVIDERS
 from app.common.exceptions import BadRequestException, UnauthorizedException
 from app.common.exceptions.decorator import exception_handler
 from app.common.middleware.auth_middleware import AuthMiddleware
@@ -21,8 +22,8 @@ from app.common.middleware.logger import Logger
 from app.common.schemas.common import BaseResponse
 from app.common.schemas.user import (
     Credential,
-    GoogleAuthUrlResponse,
-    GoogleLoginResponse,
+    SSOAuthUrlResponse,
+    SSOLoginResponse,
     RefreshTokenRequest,
     UserCreate,
     UserInfo,
@@ -30,6 +31,7 @@ from app.common.schemas.user import (
     UserLoginResponse,
     ValidateOTPRequest,
 )
+from app.core.factory.sso_factory import SSOFactory
 from app.services.auth import AuthService
 from app.core.config import settings
 
@@ -100,21 +102,27 @@ class AuthHandler:
         return "Success"
 
     @exception_handler
-    async def get_google_auth_url(
+    async def get_sso_auth_url(
         self,
         response: Response,
         request: Request,
-    ) -> GoogleLoginResponse:
+        provider: SSO_PROVIDERS = Query(..., description="SSO Auth Provilder"),
+    ) -> SSOLoginResponse:
         """
         Return the Google OAuth authorization URL. Frontend should redirect the user to this URL.
         The backend sets a state cookie; after Google redirects back to the callback, state is validated.
         """
-        ctx = AppContext(trace_id=uuid4(), action=GOOGLE_AUTHENTICATE)
+        ctx = SSOFactory.resolve_sso_context(provider=provider)
+
         logger.info(
             msg=f"Starting Get Google Auth URL Endpoint: {request.url};",
             context=ctx,
         )
-        url, state = self.service.get_google_auth_url(ctx=ctx)
+        sso_strategy = SSOFactory.resolve_sso_strategy(provider=provider)
+
+        self.service.set_sso_strategy(sso_strategy)
+
+        url, state = self.service.get_sso_auth_url(ctx=ctx)
         response.set_cookie(
             key="google_oauth_state",
             value=state,
@@ -127,8 +135,8 @@ class AuthHandler:
             msg=f"Get Google Auth URL Endpoint Finishes {request.url};",
             context=ctx,
         )
-        return GoogleLoginResponse(
-            data=GoogleAuthUrlResponse(url=url),
+        return SSOLoginResponse(
+            data=SSOAuthUrlResponse(url=url),
             message="Success",
             statusCode=200,
         )
@@ -149,7 +157,7 @@ class AuthHandler:
             context=ctx,
         )
         state_cookie = request.cookies.get("google_oauth_state")
-        login_response = await self.service.login_with_google_callback(
+        login_response = await self.service.login_with_sso_callback(
             code=code,
             state=state,
             state_cookie=state_cookie,
@@ -269,6 +277,7 @@ class AuthHandler:
     async def track_session(
         self, credential: Credential = Depends(AuthMiddleware.auth_middleware)
     ) -> str:
+
         ctx = AppContext(trace_id=uuid4(), action=TRACK_SESSION, actor=credential.id)
         minutes_until_expiry = (
             credential.exp_time - datetime.now(timezone.utc)
@@ -281,6 +290,7 @@ class AuthHandler:
 
         return "Session is still valid"
 
+    @exception_handler
     async def logout(self, response: Response, request: Request) -> str:
         ctx = AppContext(trace_id=uuid4(), action=LOGOUT)
         await self.service.logout(ctx=ctx, response=response, request=request)

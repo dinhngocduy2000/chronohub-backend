@@ -158,13 +158,13 @@ class GoogleLoginRequest(BaseModel):
     )
 
 
-class GoogleAuthUrlResponse(BaseModel):
+class SSOAuthUrlResponse(BaseModel):
     """Response containing the Google OAuth URL for redirect-based sign-in."""
 
     url: str = Field(..., description="URL to redirect the user to for Google sign-in")
 
 
-class GoogleLoginResponse(BaseResponse[GoogleAuthUrlResponse]):
+class SSOLoginResponse(BaseResponse[SSOAuthUrlResponse]):
     pass
 
 

@@ -54,7 +54,7 @@ class User(Base):
 
     comments: Mapped[List["Comment"]] = relationship("Comment", back_populates="owner")  # type: ignore
 
-    def view(self, group: Optional[GroupInfo]) -> UserInfo:
+    def view(self, group: Optional[GroupInfo] = None) -> UserInfo:
         return UserInfo(
             id=self.id,
             name=self.name,

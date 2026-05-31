@@ -12,4 +12,4 @@ def register_middleware(app: FastAPI) -> None:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.add_middleware(RequestMetricsMiddleware)
+    # app.add_middleware(RequestMetricsMiddleware)
