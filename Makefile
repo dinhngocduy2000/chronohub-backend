@@ -39,6 +39,9 @@ install-dev:
 dev:
 	uvicorn app.cmd.main:app --reload --host 0.0.0.0 --port 8000
 
+debug:
+	python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn app.cmd.main:app --reload --host 0.0.0.0 --port 8000
+
 dev-test:
 	ENV_FILE=.env.test uvicorn app.cmd.main:app --reload --host 0.0.0.0 --port 8000
 
