@@ -344,15 +344,13 @@ class AuthService:
         return await self.repo.transaction_wrapper(_run)
 
     async def login_with_sso_callback(
-        self, code: str, state: str, state_cookie: str | None, ctx: AppContext
+        self, request: Request, ctx: AppContext
     ) -> UserLoginResponse:
         """
         Exchange SSO authorization code for tokens, then get or create user and return our JWTs.
         Validates state against the cookie set when the auth URL was requested.
         """
-        idinfo = await self.sso_strategy.callback(
-            code=code, state=state, state_cookie=state_cookie, ctx=ctx
-        )
+        idinfo = await self.sso_strategy.callback(request=request, ctx=ctx)
 
         if idinfo is None:
             logger.info("idinfo is none")

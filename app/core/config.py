@@ -66,7 +66,7 @@ class Settings(BaseAppSettings):
     # Backend callback URL (must match Google Cloud Console). e.g. http://localhost:8080/api/v1/auth/google/callback
     GOOGLE_REDIRECT_URI: str = ""
     # Where to redirect the browser after successful Google login. e.g. http://localhost:3000
-    GOOGLE_FRONTEND_REDIRECT_URI: str = ""
+    GOOGLE_FRONTEND_REDIRECT_URI: str = "http://localhost:3000"
 
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []

@@ -145,8 +145,6 @@ class AuthHandler:
     async def google_callback(
         self,
         request: Request,
-        code: str = Query(..., description="Authorization code from Google"),
-        state: str = Query(..., description="State string for CSRF check"),
     ) -> RedirectResponse:
         """
         Google OAuth callback. Exchanges the code for tokens, creates session, redirects to frontend.
@@ -156,14 +154,11 @@ class AuthHandler:
             msg=f"Starting Google Callback Endpoint: {request.url};",
             context=ctx,
         )
-        state_cookie = request.cookies.get("google_oauth_state")
         login_response = await self.service.login_with_sso_callback(
-            code=code,
-            state=state,
-            state_cookie=state_cookie,
+            request=request,
             ctx=ctx,
         )
-        redirect_url = settings.GOOGLE_FRONTEND_REDIRECT_URI or "http://localhost:3000"
+        redirect_url = settings.GOOGLE_FRONTEND_REDIRECT_URI
         logger.info(
             msg=f"Google Callback Endpoint Finishes {request.url}; Redirecting to {redirect_url}.",
             context=ctx,

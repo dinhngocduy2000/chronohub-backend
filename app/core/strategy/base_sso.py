@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
+from fastapi import Request
+
 from app.common.context import AppContext
 from app.common.schemas.user import UserLoginResponse
 
@@ -12,7 +14,5 @@ class BaseSSOStrategy(ABC):
         pass
 
     @abstractmethod
-    def callback(
-        self, code: str, state: str, state_cookie: str | None, ctx: AppContext
-    ) -> UserLoginResponse:
+    def callback(self, request: Request, ctx: AppContext) -> UserLoginResponse:
         pass

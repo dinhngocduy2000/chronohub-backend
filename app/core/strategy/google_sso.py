@@ -1,6 +1,7 @@
 import secrets
 from typing import Optional, Tuple
 import urllib
+from fastapi import Request
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
 import httpx
@@ -41,9 +42,7 @@ class GoogleSSOStrategy(BaseSSOStrategy):
         )
         return url, state
 
-    async def callback(
-        self, code: str, state: str, state_cookie: str | None, ctx: AppContext
-    ) -> Optional[dict]:
+    async def callback(self, request: Request, ctx: AppContext) -> Optional[dict]:
         """
         Exchange Google authorization code for tokens, then get or create user and return our JWTs.
         Validates state against the cookie set when the auth URL was requested.
@@ -60,6 +59,12 @@ class GoogleSSOStrategy(BaseSSOStrategy):
                 context=ctx,
             )
             raise BadRequestException(message="Google Sign-In is not configured")
+
+        state_cookie = request.cookies.get("google_oauth_state")
+        query_params = request.query_params._dict
+        state = query_params.get("state")
+        code = query_params.get("code")
+
         if not state or state != state_cookie:
             logger.error(msg="Invalid or missing state in Google callback", context=ctx)
             raise BadRequestException(message="Invalid state")
