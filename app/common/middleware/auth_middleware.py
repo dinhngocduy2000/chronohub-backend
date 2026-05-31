@@ -66,16 +66,19 @@ class AuthMiddleware:
         user_email = decoded_token["email"]
         is_pending = decoded_token["is_pending"]
         active_group_id = decoded_token["active_group_id"]
-
         user_status = decoded_token["status"]
-        return Credential(
+
+        credential: Credential = Credential(
             id=user_id,
             email=user_email,
             status=user_status,
             is_pending=is_pending,
             exp_time=exp_time,
-            active_group_id=active_group_id,
         )
+        if active_group_id is not None:
+            credential.active_group_id = active_group_id
+
+        return credential
 
     @classmethod
     async def _validate_cookie_tokens(
@@ -103,8 +106,13 @@ class AuthMiddleware:
 
     @classmethod
     async def auth_middleware(cls, request: Request) -> Credential:
-        ctx = AppContext(trace_id=uuid.uuid4(), action=AUTHENTICATE_USER)
-        credential: Credential = await cls._validate_cookie_tokens(request, ctx)
-        logger.info(msg=f"Credential authorized", context=ctx)
+        try:
+            ctx = AppContext(trace_id=uuid.uuid4(), action=AUTHENTICATE_USER)
+            credential: Credential = await cls._validate_cookie_tokens(request, ctx)
+            logger.info(msg=f"Credential authorized", context=ctx)
 
-        return credential
+            return credential
+
+        except Exception as e:
+            logger.error(f"Exception while handling auth middleware: {e}")
+            raise e
