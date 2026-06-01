@@ -31,7 +31,7 @@ from app.common.schemas.user import (
     UserLoginResponse,
     ValidateOTPRequest,
 )
-from app.core.factory.sso_factory import SSOFactory
+from app.core.sso_providers.sso_factory import SSOFactory
 from app.services.auth import AuthService
 from app.core.config import settings
 
