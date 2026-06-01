@@ -31,7 +31,7 @@ from app.common.schemas.user import (
 )
 from app.common.exceptions import BadRequestException
 from app.common.utils.generate_otp import generate_otp
-from app.core.strategy.base_sso import BaseSSOStrategy
+from app.core.sso_providers.base_sso import BaseSSOStrategy
 from app.external.mail.jinja_templates import render_mail_html
 from app.external.mail.mail import MailService
 from app.models.user import User

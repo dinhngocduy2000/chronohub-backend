@@ -9,7 +9,7 @@ from app.common.context import AppContext
 from app.common.exceptions import BadRequestException
 from app.common.middleware.logger import Logger
 from app.core.config import settings
-from app.core.strategy.base_sso import BaseSSOStrategy
+from app.core.sso_providers.base_sso import BaseSSOStrategy
 
 logger = Logger()
 
