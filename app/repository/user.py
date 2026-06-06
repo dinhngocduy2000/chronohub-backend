@@ -1,7 +1,6 @@
 from typing import List, Optional
-from sqlalchemy import UUID, Select, func, select, update
+from sqlalchemy import UUID, Select, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.common.context import AppContext
 from app.common.enum.user_status import UserStatus
@@ -26,19 +25,25 @@ class UserRepository:
     def __init__(self, redis_client: RedisClient) -> None:
         self._redis_client = redis_client
 
-    def _prepare_query(self, query: UserQuery, stmt: Select) -> Select:
-        stmt = stmt.where(User.status != UserStatus.DELETED)
+    def _with_id(self, stmt: Select, id: UUID) -> Select:
+        stmt.where(User.id == id)
+        return self
 
-        if query.id is not None:
-            stmt = stmt.where(User.id == query.id)
-        if query.email is not None:
-            stmt = stmt.where(User.email == query.email)
-        if query.name is not None:
-            stmt = stmt.where(User.name == query.name)
-        if query.status is not None:
-            stmt = stmt.where(User.status == query.status)
+    def _with_email(self, stmt: Select, email: str) -> Select:
+        stmt.where(User.email == email)
+        return self
 
-        return stmt
+    def _with_name(self, stmt: Select, name: str) -> Select:
+        stmt.where(User.name == name)
+        return self
+
+    def _with_status(self, stmt: Select, status: UserStatus) -> Select:
+        stmt.where(User.status == status)
+        return self
+
+    def _with_deleted(self, stmt: Select) -> Select:
+        stmt.where(User.status != UserStatus.DELETED)
+        return self
 
     async def create_user(self, session: AsyncSession, user_info: User) -> UserInfo:
         session.add(user_info)  # Note: session.add() is NOT async, no await needed
@@ -82,7 +87,13 @@ class UserRepository:
     ) -> Optional[User]:
         try:
             stmt = select(User)
-            stmt = self._prepare_query(query, stmt)
+            stmt = (
+                self._with_deleted(stmt=stmt)
+                .with_id(stmt=stmt, id=query.id)
+                .with_email(stmt=stmt, email=query.email)
+                .with_name(stmt=stmt, name=query.name)
+                .with_status(stmt=stmt, status=query.status)
+            )
             result = await session.execute(stmt)
             user = result.scalars().first()
             return user if user else None
