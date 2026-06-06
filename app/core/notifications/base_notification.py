@@ -7,7 +7,7 @@ TRequest = TypeVar("TRequest")
 TResponse = TypeVar("TResponse")
 
 
-class ExternalService(ABC, Generic[TRequest, TResponse]):
+class BaseNotificationChannels(ABC, Generic[TRequest, TResponse]):
     """
     Abstract base class for all external service integrations.
 
@@ -18,5 +18,13 @@ class ExternalService(ABC, Generic[TRequest, TResponse]):
     """
 
     @abstractmethod
-    async def send(self, request: TRequest, ctx: AppContext) -> TResponse:
-        raise NotImplementedError
+    def send(self, request: TRequest, ctx: AppContext) -> TResponse:
+        pass
+
+    @abstractmethod
+    def _build_message(self, request: TRequest, ctx: AppContext) -> None:
+        pass
+
+    @abstractmethod
+    async def push(self, request: TRequest, ctx: AppContext) -> TResponse:
+        pass

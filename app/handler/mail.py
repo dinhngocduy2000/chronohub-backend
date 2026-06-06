@@ -12,7 +12,7 @@ from app.common.middleware.logger import Logger
 from app.common.schemas.mail import SendMailRequest, SendMailResponse
 from app.common.schemas.user import Credential
 from app.common.utils.generate_otp import generate_otp
-from app.external.base import ExternalService
+from app.core.notifications.base_notification import BaseNotificationChannels
 from app.external.mail.jinja_templates import render_mail_html
 from app.core.config import settings
 
@@ -20,10 +20,10 @@ logger = Logger()
 
 
 class MailHandler:
-    service: ExternalService[SendMailRequest, SendMailResponse]
+    service: BaseNotificationChannels[SendMailRequest, SendMailResponse]
 
     def __init__(
-        self, service: ExternalService[SendMailRequest, SendMailResponse]
+        self, service: BaseNotificationChannels[SendMailRequest, SendMailResponse]
     ) -> None:
         self.service = service
 
