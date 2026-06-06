@@ -6,17 +6,17 @@ from app.common.context import AppContext
 from app.common.middleware.logger import Logger
 from app.common.schemas.mail import SendMailRequest, SendMailResponse
 from app.core.config import settings
-from app.external.base import ExternalService
+from app.core.notifications.base_notification import BaseNotificationChannels
 
 logger = Logger()
 
 
-class MailService(ExternalService[SendMailRequest, SendMailResponse]):
+class MailService(BaseNotificationChannels[SendMailRequest, SendMailResponse]):
     """
     SMTP-based email service.
 
     To swap providers (e.g., SendGrid, SES), create a new subclass of
-    ExternalService[SendMailRequest, SendMailResponse] and inject it
+    BaseNotificationChannels[SendMailRequest, SendMailResponse] and inject it
     instead of this class in main.py.
     """
 
@@ -28,7 +28,9 @@ class MailService(ExternalService[SendMailRequest, SendMailResponse]):
         self.from_email = settings.SMTP_FROM_EMAIL
         self.use_tls = settings.SMTP_USE_TLS
 
-    def _build_message(self, request: SendMailRequest) -> MIMEMultipart:
+    def _build_message(
+        self, request: SendMailRequest, ctx: AppContext
+    ) -> MIMEMultipart:
         msg = MIMEMultipart("alternative")
         msg["From"] = self.from_email
         msg["To"] = ", ".join(request.to)
@@ -58,7 +60,7 @@ class MailService(ExternalService[SendMailRequest, SendMailResponse]):
             context=ctx,
         )
 
-        message = self._build_message(request)
+        message = self._build_message(request, ctx=ctx)
         recipients = self._all_recipients(request)
 
         implicit_tls = self.use_tls and self.port == 465
@@ -92,5 +94,6 @@ class MailService(ExternalService[SendMailRequest, SendMailResponse]):
         except Exception as e:
             logger.error(msg=f"Unexpected error while sending email: {e}", context=ctx)
             return SendMailResponse(
-                success=False, message="An unexpected error occurred while sending email"
+                success=False,
+                message="An unexpected error occurred while sending email",
             )
