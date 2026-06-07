@@ -36,3 +36,15 @@ class RedisClient:
     async def decrease(self, key, amount=1):
         async with Redis(connection_pool=self.pool) as client:
             await client.decr(key, amount)
+
+    async def hset(self, key, mapping):
+        async with Redis(connection_pool=self.pool) as client:
+            await client.hset(key=key, mapping=mapping)
+
+    async def hgetall(self, **kwargs) -> dict[str, str]:
+        async with Redis(connection_pool=self.pool) as client:
+            return await client.hgetall(kwargs)
+
+    async def hget(self, key):
+        async with Redis(connection_pool=self.pool) as client:
+            return await client.hget(key=key)

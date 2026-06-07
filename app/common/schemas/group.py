@@ -49,6 +49,7 @@ class GroupMemberInfo(BaseModel):
     group_id: UUID = Field(None, description="Group's id")
     created_at: datetime = Field(None, description="Group member's created at")
     updated_at: datetime = Field(None, description="Group member's updated at")
+    role: str = Field("", description="Group member's role")
 
 
 class GroupMemberCreate(BaseModel):

@@ -12,6 +12,7 @@ from app.common.middleware import register_middleware
 from app.common.middleware.auth_middleware import AuthMiddleware
 from app.core.config import settings
 from app.core.database import create_pg_engine
+from app.core.rbac.permissions import PermissionService
 from app.external.redis.redis import RedisClient
 from app.handler.auth import AuthHandler
 from app.handler.event import EventHandler
@@ -43,8 +44,11 @@ class App:
             mail_service = MailService()
 
             # ------------ Service ------------
+            permission_service = PermissionService(repo=registry)
             user_service = UserService(repo=registry)
-            group_service = GroupService(repo=registry)
+            group_service = GroupService(
+                repo=registry, permission_service=permission_service
+            )
             auth_service = AuthService(
                 repo=registry,
                 group_service=group_service,

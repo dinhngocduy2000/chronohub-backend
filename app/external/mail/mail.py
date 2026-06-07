@@ -54,6 +54,9 @@ class MailService(BaseNotificationChannels[SendMailRequest, SendMailResponse]):
             recipients.extend(request.bcc)
         return recipients
 
+    def push(self):
+        pass
+
     async def send(self, request: SendMailRequest, ctx: AppContext) -> SendMailResponse:
         logger.info(
             msg=f"Sending email to {request.to} with subject '{request.subject}'",

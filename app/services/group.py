@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, List
 from uuid import UUID
 from app.common.context import AppContext
@@ -13,6 +14,7 @@ from app.common.schemas.group import (
     GroupQuery,
 )
 from app.common.schemas.user import Credential, SwitchGroupRequest, UserUpdate
+from app.core.rbac.permissions import PermissionService
 from app.models.group import Group
 from app.models.group_members import GroupMembers
 from app.repository.registry import Registry
@@ -23,9 +25,11 @@ logger = Logger()
 
 class GroupService:
     repo: Registry
+    permission_service: PermissionService
 
-    def __init__(self, repo: Registry) -> None:
+    def __init__(self, repo: Registry, permission_service: PermissionService) -> None:
         self.repo = repo
+        self.permission_service = permission_service
 
     async def _create_group_members(
         self,
@@ -96,21 +100,24 @@ class GroupService:
                     session=session, group_create=group_create_domain, ctx=ctx
                 )
 
-                await self._create_group_members(
-                    member_ids=group_create.members,
-                    group_id=new_group.id,
-                    ctx=ctx,
-                    session=session,
-                    credential=credential,
-                )
-
                 logger.info(msg=f"Group created successfully", context=ctx)
-
-                await self._update_first_login_user(
-                    credential=credential,
-                    new_group=new_group,
-                    ctx=ctx,
-                    session=session,
+                await asyncio.gather(
+                    self._create_group_members(
+                        member_ids=group_create.members,
+                        group_id=new_group.id,
+                        ctx=ctx,
+                        session=session,
+                        credential=credential,
+                    ),
+                    self._update_first_login_user(
+                        credential=credential,
+                        new_group=new_group,
+                        ctx=ctx,
+                        session=session,
+                    ),
+                    self.repo.group_repo().set_group_owner(
+                        group_id=new_group.id, group_owner=credential.id, ctx=ctx
+                    ),
                 )
 
                 logger.info(msg=f"First login user updated successfully", context=ctx)
