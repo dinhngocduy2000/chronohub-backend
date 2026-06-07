@@ -26,5 +26,5 @@ class BaseNotificationChannels(ABC, Generic[TRequest, TResponse]):
         pass
 
     @abstractmethod
-    async def push(self, request: TRequest, ctx: AppContext) -> TResponse:
+    def push(self, request: TRequest, ctx: AppContext) -> TResponse:
         pass

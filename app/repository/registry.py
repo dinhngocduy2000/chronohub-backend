@@ -20,9 +20,9 @@ class Registry:
     def __init__(self, pg_engine: AsyncEngine, redis_client: RedisClient) -> None:
         self._pg_engine = pg_engine
         self._user_repo = UserRepository(redis_client=redis_client)
-        self._group_repo = GroupRepository()
+        self._group_repo = GroupRepository(redis_client=redis_client)
         self._event_repo = EventRepository()
-        self._group_members_repo = GroupMembersRepository()
+        self._group_members_repo = GroupMembersRepository(redis_client=redis_client)
         self._redis_client = redis_client
 
     async def transaction_wrapper(self, tx_func: Callable[[AsyncSession], T]) -> T:

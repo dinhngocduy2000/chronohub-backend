@@ -14,6 +14,7 @@ from app.common.schemas.group import (
     GroupQuery,
     GroupUpdate,
 )
+from app.external.redis.redis import RedisClient
 from app.models.group import Group
 from app.models.group_members import GroupMembers
 
@@ -21,9 +22,10 @@ logger = Logger()
 
 
 class GroupRepository:
+    _redis_client: RedisClient
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, redis_client) -> None:
+        self._redis_client = redis_client
 
     def _prepare_query(
         self, query: GroupQuery, stmt: Select, options: Optional[GroupJoinOption] = None
@@ -55,6 +57,7 @@ class GroupRepository:
             new_group.owner_id = group_create.owner_id
             session.add(new_group)
             await session.flush()
+
             return new_group.view()
         except Exception as e:
             logger.error(msg=f"Create group repository: Exception: {e}", context=ctx)
@@ -117,4 +120,25 @@ class GroupRepository:
             return group_update.view()
         except Exception as e:
             logger.error(msg=f"Update group repository: Exception: {e}", context=ctx)
+            raise e
+
+    # --------------- Redis -----------------------
+
+    async def set_group_owner(
+        self, group_owner: UUID, group_id: UUID, ctx: AppContext
+    ) -> None:
+        try:
+            await self._redis_client.set(key=group_id, value=group_owner)
+            return
+        except Exception as e:
+            logger.error(msg=f"Error setting group owner in Redis: {e}", context=ctx)
+            raise e
+
+    async def get_group_owner(self, group_id: UUID, ctx: AppContext) -> Optional[UUID]:
+        try:
+            owner = await self._redis_client.get(group_id)
+            return owner
+
+        except Exception as e:
+            logger.error(msg=f"Error getting group owner: {e}", context=ctx)
             raise e
