@@ -29,7 +29,7 @@ from app.common.schemas.user import (
     UserUpdate,
     ValidateOTPRequest,
 )
-from app.common.exceptions import BadRequestException
+from app.common.exceptions import BadRequestException, UnauthorizedException
 from app.common.utils.generate_otp import generate_otp
 from app.core.sso_providers.base_sso import BaseSSOStrategy
 from app.external.mail.jinja_templates import render_mail_html
@@ -496,6 +496,9 @@ class AuthService:
                     ctx=ctx,
                 )
 
+                if user is None:
+                    raise UnauthorizedException("User not found")
+
                 if user.active_group_id is not None:
                     logger.info(msg="User already has an active group", context=ctx)
                     group = await self.repo.group_repo().get_group(
@@ -510,7 +513,7 @@ class AuthService:
                 logger.error(
                     msg=f"Get current user service: Exception: {e}", context=ctx
                 )
-            raise e
+                raise e
 
         return await self.repo.transaction_wrapper(_get_current_user)
 
