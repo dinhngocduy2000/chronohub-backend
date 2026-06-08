@@ -1,11 +1,9 @@
 from functools import wraps
-from typing import Callable, Optional
 from uuid import UUID
 from app.common.context import AppContext
 from app.common.enum.user_roles import GroupRole
 from app.common.exceptions import ForbiddenException
 from app.common.middleware.logger import Logger
-from app.common.schemas.group import GroupMemberInfo
 from app.core.rbac.permissions import (
     OWN_ONLY_ACTIONS,
     ROLE_HIERACHY,

@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, PrimaryKeyConstraint, func
+from sqlalchemy import DateTime, Enum, ForeignKey, PrimaryKeyConstraint, func
+from app.common.enum.user_roles import GroupRole
 from app.common.schemas.group import GroupMemberInfo
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -32,6 +33,12 @@ class GroupMembers(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    role: Mapped[GroupRole] = mapped_column(
+        Enum(GroupRole, values_callable=lambda roles: [role.value for role in roles]),
+        nullable=False,
+        default=GroupRole.MEMBER,
+        server_default="member",
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="group_members")  # type: ignore
     group: Mapped["Group"] = relationship("Group", back_populates="members")  # type: ignore
@@ -42,4 +49,5 @@ class GroupMembers(Base):
             group_id=self.group_id,
             created_at=self.created_at,
             updated_at=self.updated_at,
+            role=self.role,
         )

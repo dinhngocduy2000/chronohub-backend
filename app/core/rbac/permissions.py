@@ -156,6 +156,7 @@ class PermissionService:
                         updated_at=cached_member["updated_at"],
                         member_id=cached_member["member_id"],
                         group_id=cached_member["group_id"],
+                        role=cached_member["role"],
                     )
 
                 return member_info
@@ -174,7 +175,7 @@ class PermissionService:
             return True
 
         # own-only fallback — only for member, moderator has these outright
-        if role == GroupRole.member and action in OWN_ONLY_ACTIONS and is_owner:
+        if role == GroupRole.MEMBER and action in OWN_ONLY_ACTIONS and is_owner:
             return True
 
         return False
