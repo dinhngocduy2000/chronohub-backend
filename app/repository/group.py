@@ -128,7 +128,7 @@ class GroupRepository:
         self, group_owner: UUID, group_id: UUID, ctx: AppContext
     ) -> None:
         try:
-            await self._redis_client.set(key=group_id, value=group_owner)
+            await self._redis_client.set(key=str(group_id), value=str(group_owner))
             return
         except Exception as e:
             logger.error(msg=f"Error setting group owner in Redis: {e}", context=ctx)

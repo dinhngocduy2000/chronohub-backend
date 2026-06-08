@@ -3,7 +3,7 @@ ifneq (,$(wildcard ./.env))
     include .env
     export               # ← exports ALL variables loaded by include
 endif
-.PHONY: help install install-dev dev docker-up docker-down migrate migration migration-status migration-history test test-unit test-integration test-cov test-watch lint format clean
+.PHONY: help install install-dev dev docker-up docker-down migrate migration migration-downgrade migration-status migration-history test test-unit test-integration test-cov test-watch lint format clean
 
 help:
 	@echo "Available commands:"
@@ -13,10 +13,11 @@ help:
 	@echo "  make dev-test          - Run server with .env.test"
 	@echo "  make docker-up         - Start Docker containers"
 	@echo "  make docker-down       - Stop Docker containers"
-	@echo "  make migrate           - Run database migrations"
-	@echo "  make migration         - Create new migration"
-	@echo "  make migration-status  - Check migration status"
-	@echo "  make migration-history - Show detailed migration history"
+	@echo "  make migrate               - Run database migrations"
+	@echo "  make migration             - Create new migration"
+	@echo "  make migration-downgrade   - Downgrade database by 1 migration"
+	@echo "  make migration-status      - Check migration status"
+	@echo "  make migration-history     - Show detailed migration history"
 	@echo "  make test              - Run all tests"
 	@echo "  make test-unit         - Run unit tests only"
 	@echo "  make test-integration  - Run integration tests only"
@@ -59,6 +60,9 @@ docker-down:
 
 migrate:
 	alembic upgrade head
+
+migration-downgrade:
+	alembic downgrade -1
 
 migration:
 	@read -p "Enter migration message: " message; \

@@ -1,7 +1,8 @@
 import asyncio
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID
 from app.common.context import AppContext
+from app.common.enum.user_roles import GroupRole
 from app.common.enum.user_status import UserStatus
 from app.common.exceptions import BadRequestException
 from app.common.middleware.logger import Logger
@@ -38,10 +39,15 @@ class GroupService:
         ctx: AppContext,
         session: AsyncSession,
         credential: Credential,
+        is_owner_create: Optional[bool] = None,
     ) -> None:
         member_ids = dict.fromkeys([*(member_ids or []), credential.id])
         new_group_members = [
-            GroupMembers(member_id=member_id, group_id=group_id)
+            GroupMembers(
+                member_id=member_id,
+                group_id=group_id,
+                role=GroupRole.OWNER if is_owner_create else GroupRole.MEMBER,
+            )
             for member_id in member_ids
         ]
 
@@ -58,9 +64,11 @@ class GroupService:
         ctx: AppContext,
         session: AsyncSession,
     ) -> None:
-        logger.info(msg=f"Credential is pending: {credential.is_pending}", context=ctx)
 
         if credential.is_pending or credential.active_group_id is None:
+            logger.info(
+                msg=f"Credential is pending: {credential.is_pending}", context=ctx
+            )
             await self.repo.user_repo().update_user(
                 session=session,
                 user_id=credential.id,
@@ -100,25 +108,25 @@ class GroupService:
                     session=session, group_create=group_create_domain, ctx=ctx
                 )
 
+                await self._create_group_members(
+                    member_ids=group_create.members,
+                    group_id=new_group.id,
+                    ctx=ctx,
+                    session=session,
+                    credential=credential,
+                    is_owner_create=True,
+                ),
+
                 logger.info(msg=f"Group created successfully", context=ctx)
-                await asyncio.gather(
-                    self._create_group_members(
-                        member_ids=group_create.members,
-                        group_id=new_group.id,
-                        ctx=ctx,
-                        session=session,
-                        credential=credential,
-                    ),
-                    self._update_first_login_user(
-                        credential=credential,
-                        new_group=new_group,
-                        ctx=ctx,
-                        session=session,
-                    ),
-                    self.repo.group_repo().set_group_owner(
-                        group_id=new_group.id, group_owner=credential.id, ctx=ctx
-                    ),
+                await self._update_first_login_user(
+                    credential=credential,
+                    new_group=new_group,
+                    ctx=ctx,
+                    session=session,
                 )
+                await self.repo.group_repo().set_group_owner(
+                    group_id=new_group.id, group_owner=credential.id, ctx=ctx
+                ),
 
                 logger.info(msg=f"First login user updated successfully", context=ctx)
                 return new_group

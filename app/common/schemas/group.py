@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field
 
+from app.common.enum.user_roles import GroupRole
+
 if TYPE_CHECKING:
     from app.common.schemas.user import UserInfo
 
@@ -49,7 +51,7 @@ class GroupMemberInfo(BaseModel):
     group_id: UUID = Field(None, description="Group's id")
     created_at: datetime = Field(None, description="Group member's created at")
     updated_at: datetime = Field(None, description="Group member's updated at")
-    role: str = Field("", description="Group member's role")
+    role: GroupRole = Field("", description="Group member's role")
 
 
 class GroupMemberCreate(BaseModel):

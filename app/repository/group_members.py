@@ -4,7 +4,6 @@ from uuid import UUID
 from sqlalchemy import select
 from app.common.context import AppContext
 from app.common.middleware.logger import Logger
-from app.common.schemas.group import GroupMemberInfo
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.external.redis.redis import RedisClient
