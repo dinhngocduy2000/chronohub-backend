@@ -41,9 +41,9 @@ class RedisClient:
         async with Redis(connection_pool=self.pool) as client:
             await client.hset(key=key, mapping=mapping)
 
-    async def hgetall(self, **kwargs) -> dict[str, str]:
+    async def hgetall(self, key) -> dict[str, str]:
         async with Redis(connection_pool=self.pool) as client:
-            return await client.hgetall(kwargs)
+            return await client.hgetall(key)
 
     async def hget(self, key):
         async with Redis(connection_pool=self.pool) as client:

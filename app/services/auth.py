@@ -81,10 +81,6 @@ class AuthService:
             logger.error(msg=f"User not found", context=ctx)
             raise BadRequestException(message="User not found")
 
-        if user.status == UserStatus.PENDING:
-            logger.error(msg=f"User is pending", context=ctx)
-            raise BadRequestException(message="Invalid credentials")
-
         logger.info(msg=f"Validating password...", context=ctx)
 
         if user.password is None:
@@ -286,7 +282,7 @@ class AuthService:
 
                 return login_response
             except Exception as e:
-                logger.error(msg=f"Login user failed: Exception", context=ctx)
+                logger.error(msg=f"Login user failed: Exception {e}", context=ctx)
                 raise e
 
         return await self.repo.transaction_wrapper(_login_user)

@@ -55,7 +55,9 @@ class App:
                 user_service=user_service,
                 mail_service=mail_service,
             )
-            event_service = EventService(repo=registry)
+            event_service = EventService(
+                repo=registry, permission_service=permission_service
+            )
 
             AuthMiddleware.init(auth_service=auth_service)
             # ------------ Handler ------------
