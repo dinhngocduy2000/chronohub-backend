@@ -1,13 +1,12 @@
 from functools import wraps
+from typing import Optional
 from uuid import UUID
 from app.common.context import AppContext
 from app.common.enum.user_roles import GroupRole
 from app.common.exceptions import ForbiddenException
 from app.common.middleware.logger import Logger
 from app.core.rbac.permissions import (
-    OWN_ONLY_ACTIONS,
     ROLE_HIERACHY,
-    ROLE_PERMISSIONS,
     PermissionService,
 )
 from app.common.schemas.user import Credential
@@ -15,13 +14,16 @@ from app.common.schemas.user import Credential
 logger = Logger()
 
 
-def require_permission(minimum_role: GroupRole, resouce_owner_id: UUID):
+def require_permission(
+    minimum_role: GroupRole, resouce_owner_id: Optional[UUID] = None
+):
     def decorator(func):
         @wraps(func)
         async def wrapper(self, *arg, **kwargs):
             ctx: AppContext = kwargs.get("ctx")
             action = ctx.action
             credential: Credential = kwargs.get("credential")
+
             permission_service: PermissionService = self.permission_service
             group_member = await permission_service.get_group_member(
                 credential=credential, ctx=ctx

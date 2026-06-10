@@ -6,3 +6,4 @@ class GroupRole(str, enum.Enum):
     ADMIN = "admin"
     MODERATOR = "moderator"
     MEMBER = "member"
+    GUEST = "guest"

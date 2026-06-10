@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from app.common.exceptions import (
     BadRequestException,
     ExceptionInternalError,
+    ForbiddenException,
     UnauthorizedException,
 )
 from app.common.middleware.logger import Logger
@@ -22,6 +23,9 @@ def exception_handler(func):
             raise e
         except UnauthorizedException as e:
             logger.error(f"HTTP exception: {e}")
+            raise e
+        except ForbiddenException as e:
+            logger.error(f"HTTP Fobidden exception: {e}")
             raise e
         except ValidationError as e:
             logger.error(f"Validation error: {e}")

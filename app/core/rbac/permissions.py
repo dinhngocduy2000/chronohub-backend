@@ -9,6 +9,7 @@ from app.common.enum.context_actions import (
     DELETE_GROUP,
     EDIT_GROUP_SETTINGS,
     INVITE_MEMBER,
+    LIST_CALENDAR_EVENTS,
     LOCK_EVENT,
     PROMOTE_TO_ADMIN,
     UPDATE_EVENT,
@@ -32,7 +33,6 @@ ROLE_HIERACHY = [
 
 ROLE_PERMISSIONS: dict[GroupRole, set[str]] = {
     GroupRole.OWNER: {
-        CREATE_GROUP,
         CREATE_EVENT,
         DELETE_EVENT,
         UPDATE_EVENT,
@@ -44,6 +44,7 @@ ROLE_PERMISSIONS: dict[GroupRole, set[str]] = {
         INVITE_MEMBER,
         REMOVE_MEMBER,
         PROMOTE_TO_ADMIN,
+        LIST_CALENDAR_EVENTS,
         # Action.VIEW_COST_DASHBOARD,
         # Action.SET_REMINDER,
         # Action.UPLOAD_MEMORY,
@@ -63,6 +64,7 @@ ROLE_PERMISSIONS: dict[GroupRole, set[str]] = {
         DELETE_EVENT,
         UPDATE_EVENT,
         VOTE_EVENT,
+        LIST_CALENDAR_EVENTS,
         LOCK_EVENT,
         # Action.SET_REMINDER,
         # Action.UPLOAD_MEMORY,
@@ -78,11 +80,12 @@ ROLE_PERMISSIONS: dict[GroupRole, set[str]] = {
         # MEMBER ROLES
         CREATE_EVENT,
         VOTE_EVENT,
+        LIST_CALENDAR_EVENTS,
         # Action.UPLOAD_MEMORY,
         # Action.LIKE_COMMENT,
         # Action.EXPORT_PDF,
         # Action.SEND_MESSAGE,
-        # ✅ content moderation — this is what separates them from member
+        # ----------------- content moderation — this is what separates them from member
         LOCK_EVENT,
         UPDATE_EVENT,
         DELETE_EVENT,
@@ -94,11 +97,15 @@ ROLE_PERMISSIONS: dict[GroupRole, set[str]] = {
     GroupRole.MEMBER: {
         CREATE_EVENT,
         VOTE_EVENT,
+        LIST_CALENDAR_EVENTS,
         # Action.LIKE_COMMENT,
         # Action.UPLOAD_MEMORY,
         # Action.LIKE_COMMENT,
         # Action.EXPORT_PDF,
         # Action.SEND_MESSAGE,
+    },
+    GroupRole.GUEST: {
+        LIST_CALENDAR_EVENTS,
     },
 }
 
@@ -131,9 +138,12 @@ class PermissionService:
         async def _get_group_member(session: AsyncSession) -> GroupMemberInfo:
             try:
                 member_info: GroupMemberInfo | None = None
-                cached_member = self.repo.group_members_repo().get_group_member_redis(
-                    group_id=credential.active_group_id, member_id=credential.id
+                cached_member = (
+                    await self.repo.group_members_repo().get_group_member_redis(
+                        group_id=credential.active_group_id, member_id=credential.id
+                    )
                 )
+
                 if not cached_member:
                     member = (
                         await self.repo.group_members_repo().get_group_member_by_id(
@@ -166,8 +176,9 @@ class PermissionService:
                     msg=f"Error getting group member when validating role: {e}"
                 )
 
-        return self.repo.transaction_wrapper(_get_group_member)
+        return await self.repo.transaction_wrapper(_get_group_member)
 
+    @staticmethod
     def is_action_executable(
         role: GroupRole, action: str, is_owner: bool = False
     ) -> bool:

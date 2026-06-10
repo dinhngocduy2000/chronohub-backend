@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import String
 from app.common.context import AppContext
+from app.common.enum.user_roles import GroupRole
 from app.common.exceptions import BadRequestException
 from app.common.middleware.logger import Logger
 from app.common.schemas.events import (
@@ -13,23 +14,26 @@ from app.common.schemas.events import (
     EventCreateDomain,
     EventDetailInfo,
     EventJoinOptions,
-    EventListInfo,
     EventQuery,
     EventUpdate,
     ListEventQuery,
 )
 from app.common.schemas.user import Credential
+from app.core.rbac.permissions import PermissionService
 from app.repository.registry import Registry
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.rbac.role_validation import require_permission
 
 logger = Logger()
 
 
 class EventService:
     repo: Registry
+    permission_service: PermissionService
 
-    def __init__(self, repo: Registry) -> None:
+    def __init__(self, repo: Registry, permission_service: PermissionService) -> None:
         self.repo = repo
+        self.permission_service = permission_service
 
     async def _check_event_exists(
         self, query: EventQuery, session: AsyncSession, ctx: AppContext
@@ -176,7 +180,10 @@ class EventService:
 
         return await self.repo.transaction_wrapper(_get_event_detail)
 
-    async def delete_event(self, event_id: UUID, ctx: AppContext) -> None:
+    @require_permission(minimum_role=GroupRole.OWNER)
+    async def delete_event(
+        self, event_id: UUID, ctx: AppContext, credential: Credential
+    ) -> None:
         async def _delete_event(session: AsyncSession) -> None:
             try:
                 event = await self.repo.event_repo().get(

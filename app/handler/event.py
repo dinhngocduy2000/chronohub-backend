@@ -114,7 +114,9 @@ class EventHandler:
             msg=f"Starting Delete Event Endpoint: {request.url}; params: ${id}",
             context=ctx,
         )
-        res = await self.service.delete_event(event_id=id, ctx=ctx)
+        res = await self.service.delete_event(
+            event_id=id, ctx=ctx, credential=credential
+        )
         logger.info(
             msg=f"Delete Event Endpoint Finishes {request.url}; params: ${id};",
             context=ctx,
