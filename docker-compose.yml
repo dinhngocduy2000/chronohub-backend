@@ -20,16 +20,17 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine          # Lightweight and recommended version (use :latest if you prefer)
+    image: redis:7-alpine
     container_name: redis
-    restart: unless-stopped        # Auto-restart unless explicitly stopped
+    restart: unless-stopped
     ports:
-      - "6379:6379"                # Expose Redis port to your host
+      - "6379:6379"
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     volumes:
-      - redis-data:/data           # Persistent storage for Redis data
-    command: sh -c "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""
+      - ./redis.conf:/etc/redis/redis.conf:ro
+      - redis-data:/data
+    command: sh -c "redis-server /etc/redis/redis.conf --requirepass \"$$REDIS_PASSWORD\""
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
